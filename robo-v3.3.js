@@ -559,7 +559,7 @@ const caminhoLog = path.join(pastaLogs, ultimoLog);
 
 log("INFO", "Log selecionado: " + ultimoLog);
 
-await enviarLogDrive(caminhoLog, `log-${dataHojeISO}.txt`);
+await enviarLogDrive(caminhoLog, ultimoLog);
 	
 await browser.close();
 
