@@ -27,3 +27,9 @@ jobs:
         run: node robo-v3.3.js
         env:
           SENHA: ${{ secrets.SENHA }}
+
+      - name: Upload do Excel
+        uses: actions/upload-artifact@v4
+        with:
+          name: relatorio-assim
+          path: relatorios/*.xlsx
