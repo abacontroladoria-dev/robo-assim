@@ -578,9 +578,10 @@ async function enviarRelatorioDrive(caminhoArquivo, nomeArquivo) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        fileName: nomeArquivo,
-        fileContent: base64
-      })
+  		type: "relatorio",
+  		fileName: nomeArquivo,
+  		fileContent: base64
+		})
     });
 
     const text = await response.text();
