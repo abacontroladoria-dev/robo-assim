@@ -37,5 +37,5 @@ jobs:
       - name: Executar robô
         run: node robo-v3.3.js
         env:
-        SENHA: ${{ secrets.SENHA }}
-        GOOGLE_SCRIPT_URL: ${{ secrets.GOOGLE_SCRIPT_URL }}
+          SENHA: ${{ secrets.SENHA }}
+          GOOGLE_SCRIPT_URL: ${{ secrets.GOOGLE_SCRIPT_URL }}
