@@ -653,7 +653,7 @@ async function salvarStatusRemoto(status) {
   try {
     const url = process.env.GOOGLE_SCRIPT_URL;
 
-    await fetch(url, {
+    const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -662,9 +662,12 @@ async function salvarStatusRemoto(status) {
       })
     });
 
-    log("INFO", "Status salvo no Drive");
+    const text = await response.text();
 
- 	 } catch (erro) {
+    log("INFO", "Resposta do STATE: " + text);
+
+  } catch (erro) {
     log("ERROR", "Erro ao salvar status remoto");
- 	 }
-	}
+    log("ERROR", erro.message);
+  }
+}
