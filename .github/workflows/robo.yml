@@ -39,5 +39,5 @@ jobs:
       - name: Upload dos logs
         uses: actions/upload-artifact@v4
         with:
-        name: logs-robo
-        path: logs/*.txt
+          name: logs-robo
+          path: logs/*.txt
