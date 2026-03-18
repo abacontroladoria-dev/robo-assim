@@ -551,9 +551,9 @@ await browser.close();
 console.log("Execução finalizada com sucesso");
 })();
 
-// =============================
-// ENVIO DE ARQUIVO PARA O DRIVE
-// =============================
+// ===============================
+// ENVIO DE RELATORIO PARA O DRIVE
+// ===============================
 	
 async function enviarRelatorioDrive(caminhoArquivo, nomeArquivo) {
   try {
@@ -584,6 +584,39 @@ async function enviarRelatorioDrive(caminhoArquivo, nomeArquivo) {
 
   } catch (erro) {
     log("ERROR", "Erro ao enviar relatório");
+    log("ERROR", erro.message);
+  }
+}
+
+// ===============================
+// ENVIO DE LOG PARA O DRIVE
+// ===============================
+
+async function enviarLogDrive(caminhoLog, nomeArquivo) {
+  try {
+    const url = process.env.GOOGLE_SCRIPT_URL;
+
+    const fileBuffer = fs.readFileSync(caminhoLog);
+    const base64 = fileBuffer.toString('base64');
+
+    log("INFO", "Enviando LOG para o Drive...");
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: "log",
+        fileName: nomeArquivo,
+        fileContent: base64
+      })
+    });
+
+    const text = await response.text();
+
+    log("INFO", "Resposta do Drive (LOG): " + text);
+
+  } catch (erro) {
+    log("ERROR", "Erro ao enviar LOG");
     log("ERROR", erro.message);
   }
 }
