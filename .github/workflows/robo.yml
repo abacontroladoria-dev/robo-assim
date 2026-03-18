@@ -1,0 +1,29 @@
+name: Executar Robo
+
+on:
+  schedule:
+    - cron: "*/15 10-21 * * 1-5"
+  workflow_dispatch:
+
+jobs:
+  run-robo:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Clonar repositório
+        uses: actions/checkout@v3
+
+      - name: Instalar Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: Instalar dependências
+        run: |
+          npm install
+          npx playwright install
+
+      - name: Executar robô
+        run: node robo-v3.3.js
+        env:
+          SENHA: ${{ secrets.SENHA }}
