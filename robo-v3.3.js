@@ -572,10 +572,51 @@ async function enviarRelatorioDrive(caminhoArquivo, nomeArquivo) {
 
     log("SUCCESS", "Relatório enviado para o Drive");
 
-  } catch (erro) {
+  	} catch (erro) {
     log("ERROR", "Erro ao enviar relatório");
     log("ERROR", erro.message);
-  }
-}
-	
+  	}
+	}
+// =============================
+// LER O STATUS
+// =============================
+
+async function obterStatusRemoto() {
+	try {
+    const url = process.env.GOOGLE_SCRIPT_URL;
+
+    const res = await fetch(url);
+    const data = await res.json();
+
+    return data.status;
+
+ 	 } catch (erro) {
+    log("ERROR", "Erro ao obter status remoto");
+    return null;
+ 	 }
+	}
+
+// =============================
+// SALVAR STATUS
+// =============================
+
+async function salvarStatusRemoto(status) {
+  try {
+    const url = process.env.GOOGLE_SCRIPT_URL;
+
+    await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: "state",
+        status
+      })
+    });
+
+    log("INFO", "Status salvo no Drive");
+
+ 	 } catch (erro) {
+    log("ERROR", "Erro ao salvar status remoto");
+ 	 }
+	}
 })();
