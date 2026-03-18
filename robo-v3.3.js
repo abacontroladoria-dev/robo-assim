@@ -530,7 +530,9 @@ if (!fs.existsSync(pastaRelatorios)) {
 const caminhoArquivo = path.join(pastaRelatorios, nomeArquivo);
 
 XLSX.writeFile(workbook, caminhoArquivo);
-
+	
+await enviarRelatorioDrive(caminhoArquivo, nomeArquivo);
+	
 console.log("Excel gerado:", nomeArquivo);
 
 // LOGIN ORBITA
@@ -548,4 +550,32 @@ await browser.close();
 
 console.log("Execução finalizada com sucesso");
 
+// =============================
+// ENVIO DE ARQUIVO PARA O DRIVE
+// =============================
+	
+async function enviarRelatorioDrive(caminhoArquivo, nomeArquivo) {
+  try {
+    const url = process.env.GOOGLE_SCRIPT_URL;
+
+    const fileBuffer = fs.readFileSync(caminhoArquivo);
+    const base64 = fileBuffer.toString('base64');
+
+    await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        fileName: nomeArquivo,
+        fileContent: base64
+      })
+    });
+
+    log("SUCCESS", "Relatório enviado para o Drive");
+
+  } catch (erro) {
+    log("ERROR", "Erro ao enviar relatório");
+    log("ERROR", erro.message);
+  }
+}
+	
 })();
