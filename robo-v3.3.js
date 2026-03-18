@@ -546,8 +546,18 @@ await enviarExcelOrbita(page,caminhoArquivo,dataHoje);
 
 console.log("Tempo TOTAL:", tempo(inicioTotal));
 	
-const dataHojeISO = new Date().toISOString().slice(0,10);
-const caminhoLog = path.join(__dirname, 'logs', `log-${dataHojeISO}.txt`);
+const pastaLogs = path.join(__dirname, 'logs');
+
+const arquivos = fs.readdirSync(pastaLogs);
+
+const ultimoLog = arquivos
+  .filter(f => f.startsWith('log-'))
+  .sort()
+  .pop();
+
+const caminhoLog = path.join(pastaLogs, ultimoLog);
+
+log("INFO", "Log selecionado: " + ultimoLog);
 
 await enviarLogDrive(caminhoLog, `log-${dataHojeISO}.txt`);
 	
