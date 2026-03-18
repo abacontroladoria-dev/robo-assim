@@ -545,7 +545,12 @@ await enviarExcelOrbita(page,caminhoArquivo,dataHoje);
 
 
 console.log("Tempo TOTAL:", tempo(inicioTotal));
+	
+const dataHojeISO = new Date().toISOString().slice(0,10);
+const caminhoLog = path.join(__dirname, 'logs', `log-${dataHojeISO}.txt`);
 
+await enviarLogDrive(caminhoLog, `log-${dataHojeISO}.txt`);
+	
 await browser.close();
 
 console.log("Execução finalizada com sucesso");
