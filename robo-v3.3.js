@@ -434,7 +434,7 @@ const sucesso = await acessarComRetry(
   'https://sirius.assim.com.br/assimcsp/autorizador/login.csp'
 );
 
-const statusAnterior = lerStatus();
+const statusAnterior = await obterStatusRemoto();
 
 // 🔴 SITE FORA
 if (!sucesso) {
@@ -447,7 +447,7 @@ if (!sucesso) {
 
   }
 
-  salvarStatus("offline");
+  await salvarStatusRemoto("offline");
 
   process.exit(1);
 }
@@ -463,7 +463,7 @@ if (sucesso) {
 
   }
 
-  salvarStatus("online");
+  await salvarStatusRemoto("online");
 }
 
 await page.selectOption('select','52345');
@@ -549,6 +549,7 @@ console.log("Tempo TOTAL:", tempo(inicioTotal));
 await browser.close();
 
 console.log("Execução finalizada com sucesso");
+})
 
 // =============================
 // ENVIO DE ARQUIVO PARA O DRIVE
@@ -558,10 +559,17 @@ async function enviarRelatorioDrive(caminhoArquivo, nomeArquivo) {
   try {
     const url = process.env.GOOGLE_SCRIPT_URL;
 
+    if (!url) {
+      log("ERROR", "GOOGLE_SCRIPT_URL não definida");
+      return;
+    }
+
     const fileBuffer = fs.readFileSync(caminhoArquivo);
     const base64 = fileBuffer.toString('base64');
 
-    await fetch(url, {
+    log("INFO", "Enviando relatório para o Drive...");
+
+    const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -570,13 +578,16 @@ async function enviarRelatorioDrive(caminhoArquivo, nomeArquivo) {
       })
     });
 
-    log("SUCCESS", "Relatório enviado para o Drive");
+    const text = await response.text();
 
-  	} catch (erro) {
+    log("INFO", "Resposta do Drive: " + text);
+
+  } catch (erro) {
     log("ERROR", "Erro ao enviar relatório");
     log("ERROR", erro.message);
-  	}
-	}
+  }
+}
+
 // =============================
 // LER O STATUS
 // =============================
@@ -619,4 +630,4 @@ async function salvarStatusRemoto(status) {
     log("ERROR", "Erro ao salvar status remoto");
  	 }
 	}
-})();
+();
