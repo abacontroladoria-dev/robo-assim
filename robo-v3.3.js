@@ -549,7 +549,7 @@ console.log("Tempo TOTAL:", tempo(inicioTotal));
 await browser.close();
 
 console.log("Execução finalizada com sucesso");
-})
+})();
 
 // =============================
 // ENVIO DE ARQUIVO PARA O DRIVE
