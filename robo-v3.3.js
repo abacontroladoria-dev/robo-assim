@@ -12,6 +12,28 @@ const XLSX = require('xlsx');
 const path = require('path');
 const fs = require('fs');
 
+function dentroDoHorario() {
+  const agora = new Date();
+
+  // converte para horário do Brasil
+  const horaBR = new Date(agora.toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
+
+  const dia = horaBR.getDay(); // 0=domingo, 6=sábado
+  const hora = horaBR.getHours();
+  const minuto = horaBR.getMinutes();
+
+  // segunda a sexta
+  if (dia === 0 || dia === 6) return false;
+
+  // antes de 07:30
+  if (hora < 7 || (hora === 7 && minuto < 30)) return false;
+
+  // depois de 18:00
+  if (hora > 18) return false;
+
+  return true;
+}
+
 function log(tipo, mensagem) {
   const agora = new Date();
 
@@ -97,7 +119,6 @@ async function enviarSlack(mensagem) {
 
   }
 }
-
 
 async function acessarComRetry(page, url, tentativas = 3) {
 
@@ -409,6 +430,15 @@ await page.waitForTimeout(2000);
 // =========================
 
 (async () => {
+
+if (!dentroDoHorario()) {
+  log("INFO", "Fora do horário de execução");
+  process.exit(0);
+}
+const atraso = Math.floor(Math.random() * 180000); // até 3 min
+  console.log("Aguardando", atraso / 1000, "segundos...");
+
+	await new Promise(r => setTimeout(r, atraso));
 
 const inicioTotal = Date.now();
 
