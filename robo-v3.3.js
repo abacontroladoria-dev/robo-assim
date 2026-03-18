@@ -66,7 +66,7 @@ function salvarStatus(status) {
 
 async function enviarSlack(mensagem) {
 
-  const webhook = "SUA_URL_AQUI";
+  const webhook = process.env.SLACK_WEBHOOK;
 
   try {
 
@@ -630,4 +630,3 @@ async function salvarStatusRemoto(status) {
     log("ERROR", "Erro ao salvar status remoto");
  	 }
 	}
-();
