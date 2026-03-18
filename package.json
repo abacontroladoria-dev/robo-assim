@@ -1,0 +1,18 @@
+{
+  "dependencies": {
+    "node-fetch": "^3.3.2",
+    "playwright": "^1.58.2",
+    "xlsx": "^0.18.5"
+  },
+  "name": "robo-assim",
+  "version": "1.0.0",
+  "description": "",
+  "main": "robo-v3.1.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs"
+}
