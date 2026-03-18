@@ -521,7 +521,14 @@ XLSX.utils.book_append_sheet(workbook, worksheet, "Relatorio");
 
 const nomeArquivo = `relatorio_assim_${dataArquivo}.xlsx`;
 
-const caminhoArquivo = path.join(__dirname, 'relatorios', nomeArquivo);
+const pastaRelatorios = path.join(__dirname, 'relatorios');
+
+if (!fs.existsSync(pastaRelatorios)) {
+  fs.mkdirSync(pastaRelatorios, { recursive: true });
+}
+
+const caminhoArquivo = path.join(pastaRelatorios, nomeArquivo);
+
 XLSX.writeFile(workbook, caminhoArquivo);
 
 console.log("Excel gerado:", nomeArquivo);
