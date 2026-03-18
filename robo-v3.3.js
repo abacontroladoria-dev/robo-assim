@@ -468,7 +468,7 @@ if (sucesso) {
 }
 
 await page.selectOption('select','52345');
-await page.fill('input[type="password"]','6df3');
+await page.fill('input[type="password"]', process.env.SENHA);
 
 await Promise.all([
   page.waitForNavigation(),
