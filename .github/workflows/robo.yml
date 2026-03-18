@@ -28,9 +28,10 @@ jobs:
         env:
           SENHA: ${{ secrets.SENHA }}
           GOOGLE_SCRIPT_URL: ${{ secrets.GOOGLE_SCRIPT_URL }}
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
 
       - name: Upload do Excel
         uses: actions/upload-artifact@v4
         with:
           name: relatorio-assim
-          path: relatorios/*.xlsx
+          path: relatorios/*.xlsx          
