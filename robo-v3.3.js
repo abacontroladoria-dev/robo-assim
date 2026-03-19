@@ -435,7 +435,7 @@ if (!dentroDoHorario()) {
   log("INFO", "Fora do horário de execução");
   process.exit(0);
 }
-const atraso = Math.floor(Math.random() * 180000); // até 3 min
+const atraso = 10000 + Math.random() * 20000; // entre 10s e 30s
   console.log("Aguardando", atraso / 1000, "segundos...");
 
 	await new Promise(r => setTimeout(r, atraso));
