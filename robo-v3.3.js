@@ -35,12 +35,23 @@ function dentroDoHorario() {
 }
 
 function log(tipo, mensagem) {
+
   const agora = new Date();
 
-  const data = agora.toISOString().slice(0,10);
-  const hora = agora.toTimeString().slice(0,8);
+  const data = agora.toLocaleDateString('pt-BR', {
+    timeZone: 'America/Sao_Paulo'
+  });
 
-  const linha = `[${data} ${hora}] [${tipo}] ${mensagem}\n`;
+  const hora = agora.toLocaleTimeString('pt-BR', {
+    timeZone: 'America/Sao_Paulo',
+    hour12: false
+  });
+
+  // opcional: converter 19/03/2026 → 2026-03-19
+  const [dia, mes, ano] = data.split('/');
+  const dataFormatada = `${ano}-${mes}-${dia}`;
+
+  const linha = `[${dataFormatada} ${hora}] [${tipo}] ${mensagem}\n`;
 
   const pastaLogs = path.join(__dirname, 'logs');
 
@@ -48,7 +59,7 @@ function log(tipo, mensagem) {
     fs.mkdirSync(pastaLogs, { recursive: true });
   }
 
-  const caminhoLog = path.join(pastaLogs, `log-${data}.txt`);
+  const caminhoLog = path.join(pastaLogs, `log-${dataFormatada}.txt`);
 
   fs.appendFileSync(caminhoLog, linha);
 
