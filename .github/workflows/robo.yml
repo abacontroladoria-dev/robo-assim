@@ -2,9 +2,13 @@ name: Executar Robo
 
 on:
   schedule:
-    - cron: "*/15 10-21 * * 1-5"
-  workflow_dispatch:
-
+    - cron: "*/15 11-21 * * 1-5"
+    workflow_dispatch:
+    
+concurrency:
+  group: automacao-assim-orbita
+  cancel-in-progress: false
+  
 jobs:
   run-robo:
     runs-on: ubuntu-latest
@@ -21,23 +25,23 @@ jobs:
       - name: Instalar dependências
         run: |
           npm install
-          npx playwright install
+          npx playwright install chromium
 
       - name: Executar robô
         run: node robo-v3.3.js
         env:
+          # Segredos do GitHub (precisam estar configurados no repo)
           SENHA: ${{ secrets.SENHA }}
+          ORBITA_USER: ${{ secrets.ORBITA_USER }}
+          ORBITA_PASS: ${{ secrets.ORBITA_PASS }}
           GOOGLE_SCRIPT_URL: ${{ secrets.GOOGLE_SCRIPT_URL }}
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
 
-      - name: Upload do Excel
+      - name: Upload de Artefatos (Backup)
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: relatorio-assim
-          path: relatorios/*.xlsx
-          
-      - name: Upload dos logs
-        uses: actions/upload-artifact@v4
-        with:
-          name: logs-robo
-          path: logs/*.txt
+          name: logs-e-relatorios
+          path: |
+            logs/*.txt
+            relatorios/*.xlsx
