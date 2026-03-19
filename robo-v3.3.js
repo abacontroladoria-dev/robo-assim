@@ -580,7 +580,7 @@ async function obterStatusRemoto() {
     } catch (erro) {
       if (i === 2) {
         log("ERROR", "Erro ao obter status remoto");
-        return null;
+        return "desconhecido";
       }
 
       await new Promise(r => setTimeout(r, 2000));
