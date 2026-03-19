@@ -672,19 +672,23 @@ async function enviarLogDrive(caminhoLog, nomeArquivo) {
 // =============================
 
 async function obterStatusRemoto() {
-	try {
-    const url = process.env.GOOGLE_SCRIPT_URL;
 
-    const res = await fetch(url);
-    const data = await res.json();
+  for (let i = 1; i <= 2; i++) {
 
-    return data.status;
+    try {
+      const res = await fetch(process.env.GOOGLE_SCRIPT_URL);
+      const data = await res.json();
+      return data.status;
 
- 	 } catch (erro) {
-    log("ERROR", "Erro ao obter status remoto");
-    return null;
- 	 }
-	}
+    } catch (erro) {
+      if (i === 2) {
+        log("ERROR", "Erro ao obter status remoto");
+        return null;
+      }
+      await new Promise(r => setTimeout(r, 2000));
+    }
+  }
+}
 
 // =============================
 // SALVAR STATUS
