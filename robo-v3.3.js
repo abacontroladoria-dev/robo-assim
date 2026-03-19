@@ -14,22 +14,16 @@ const fs = require('fs');
 
 function dentroDoHorario() {
   const agora = new Date();
-
-  // converte para horário do Brasil
   const horaBR = new Date(agora.toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
-
-  const dia = horaBR.getDay(); // 0=domingo, 6=sábado
+  const dia = horaBR.getDay(); 
   const hora = horaBR.getHours();
   const minuto = horaBR.getMinutes();
 
-  // segunda a sexta
-  if (dia === 0 || dia === 6) return false;
+  if (dia === 0 || dia === 6) return false; // Fim de semana
 
-  // antes de 07:30
-  if (hora < 7 || (hora === 7 && minuto < 30)) return false;
-
-  // depois de 18:00
-  if (hora > 18) return false;
+  // NOVA REGRA: Início 08:00 | Fim 18:00
+  if (hora < 8) return false;
+  if (hora > 18 || (hora === 18 && minuto > 5)) return false; 
 
   return true;
 }
@@ -441,11 +435,13 @@ await page.waitForTimeout(2000);
 // =========================
 
 (async () => {
+  log("INFO", "🚀 Iniciando verificação de rotina...");
 
-if (!dentroDoHorario()) {
-  log("INFO", "Fora do horário de execução");
-  process.exit(0);
-}
+  if (!dentroDoHorario()) {
+    log("INFO", "💤 Fora do horário de execução (08:00 - 18:00). Encerrando.");
+    process.exit(0);
+  }
+	
 const atraso = 10000 + Math.random() * 20000; // entre 10s e 30s
   console.log("Aguardando", atraso / 1000, "segundos...");
 
@@ -578,17 +574,32 @@ console.log("Excel gerado:", nomeArquivo);
 
 // LOGIN ORBITA
 
-await loginOrbita(page,"caiovinicius","C@io1309");
+const userOrbita = process.env.ORBITA_USER;
+  const passOrbita = process.env.ORBITA_PASS;
+
+  if (!userOrbita || !passOrbita) {
+    log("ERROR", "❌ Credenciais do Órbita não encontradas no ambiente.");
+    process.exit(1);
+  }
+
+const userOrbita = process.env.ORBITA_USER;
+const passOrbita = process.env.ORBITA_PASS;
+
+if (!userOrbita || !passOrbita) {
+  log("ERROR", "Credenciais do Órbita não encontradas");
+  await browser.close();
+  process.exit(1);
+}
+
+// LOGIN ORBITA
+await loginOrbita(page, userOrbita, passOrbita);
 
 // UPLOAD
-
-await enviarExcelOrbita(page,caminhoArquivo,dataHoje);
-
+await enviarExcelOrbita(page, caminhoArquivo, dataHoje);
 
 console.log("Tempo TOTAL:", tempo(inicioTotal));
-	
-const pastaLogs = path.join(__dirname, 'logs');
 
+const pastaLogs = path.join(__dirname, 'logs');
 const arquivos = fs.readdirSync(pastaLogs);
 
 const ultimoLog = arquivos
@@ -596,15 +607,19 @@ const ultimoLog = arquivos
   .sort()
   .pop();
 
-const caminhoLog = path.join(pastaLogs, ultimoLog);
+if (ultimoLog) {
+  const caminhoLog = path.join(pastaLogs, ultimoLog);
+  log("INFO", "Log selecionado: " + ultimoLog);
+  await enviarLogDrive(caminhoLog, ultimoLog);
+} else {
+  log("ERROR", "Nenhum arquivo de log encontrado para envio");
+}
 
-log("INFO", "Log selecionado: " + ultimoLog);
+log("SUCCESS", `Execução finalizada com sucesso em ${tempo(inicioTotal)}`);
 
-await enviarLogDrive(caminhoLog, ultimoLog);
-	
 await browser.close();
-
 console.log("Execução finalizada com sucesso");
+
 })();
 
 // ===============================
@@ -644,7 +659,7 @@ async function enviarRelatorioDrive(caminhoArquivo, nomeArquivo) {
     log("ERROR", erro.message);
   }
 }
-
+ 
 // ===============================
 // ENVIO DE LOG PARA O DRIVE
 // ===============================
