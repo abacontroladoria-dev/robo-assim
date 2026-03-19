@@ -1,9 +1,9 @@
 name: Executar Robo
 
 on:
-  schedule:
-    - cron: "*/15 11-21 * * 1-5"
-    workflow_dispatch:
+schedule:
+  - cron: "*/15 11-21 * * 1-5"
+  workflow_dispatch:
     
 concurrency:
   group: automacao-assim-orbita
