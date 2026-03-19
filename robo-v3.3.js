@@ -611,37 +611,3 @@ async function salvarStatusRemoto(status) {
     log("ERROR", erro.message);
   }
 }
-
-// ==========================================
-// VERIFICAR MUDANÇA DE STATUS
-// ==========================================
-
-async function verificarMudancaStatus(statusAtual) {
-    try {
-        // 1. Obter status anterior
-        const statusAnterior = await obterStatusRemoto();
-        log(`[DEBUG SLACK] Status anterior: '${statusAnterior}', Status atual: '${statusAtual}'`);
-
-        // 2. Comparar - Só envia Slack se mudou!
-        if (statusAtual !== statusAnterior) {
-            log(`[DEBUG SLACK] Detectada mudança de status: de '${statusAnterior}' para '${statusAtual}'. Enviando notificação Slack.`);
-            
-            const timestampSP = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
-
-            if (statusAtual === "online") {
-                await enviarSlack(`🟢 *DISPONIBILIDADE RESTAURADA*\nO site do Autorizador da Assim voltou ao ar.\n⏰ ${timestampSP}`);
-            } else if (statusAtual === "offline") {
-                await enviarSlack(`🔴 *INDISPONIBILIDADE DETECTADA*\nO site do Autorizador da Assim está FORA do ar.\n⏰ ${timestampSP}`);
-            }
-        } else {
-            log(`[DEBUG SLACK] Status inalterado: '${statusAtual}'. Nenhuma notificação Slack enviada.`);
-        }
-
-        // 3. Salvar novo status
-        await salvarStatusRemoto(statusAtual);
-
-    } catch (error) {
-        log(`Erro ao verificar mudança de status: ${error.message}`);
-        await salvarStatusRemoto(statusAtual);
-    }
-}
