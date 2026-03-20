@@ -19,9 +19,11 @@ function dentroDoHorario() {
 
   const dia = horaBR.getDay();
   const hora = horaBR.getHours();
+  const minuto = horaBR.getMinutes();
 
   if (dia === 0 || dia === 6) return false;
   if (hora < 8) return false;
+  if (hora === 8 && minuto < 30) return false;
   if (hora >= 18) return false;
 
   return true;
@@ -358,7 +360,10 @@ async function enviarExcelOrbita(page, arquivoExcel, dataHoje) {
 // =========================
 
 (async () => {
-
+  
+  log('INFO', '\n' + '='.repeat(50));
+  log('INFO', 'INICIANDO NOVA EXECUÇÃO DO ROBÔ');
+  log('INFO', '='.repeat(50));
   log("INFO", "Iniciando verificação de rotina...");
 
   if (!dentroDoHorario()) {
