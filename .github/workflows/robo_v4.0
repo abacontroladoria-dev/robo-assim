@@ -1,4 +1,4 @@
-name: Executar Robo 4.0
+name: Exe Robo 4.0
 on:
   workflow_dispatch:
 
