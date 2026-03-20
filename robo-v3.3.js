@@ -114,7 +114,7 @@ function lerStatus() {
   try {
     return JSON.parse(fs.readFileSync(caminho, 'utf-8')).status;
   } catch (erro) {
-    log("ERROR", "Erro ao ler status-site.json");
+    log("ERROR", "📡 Erro ao ler status-site.json");
     return null;
   }
 }
@@ -132,7 +132,7 @@ function salvarStatus(status) {
 async function enviarSlack(mensagem) {
   const webhook = process.env.SLACK_WEBHOOK;
   if (!webhook) {
-    log("ERROR", "SLACK_WEBHOOK não definida");
+    log("ERROR", "⚙️ SLACK_WEBHOOK não definida");
     return;
   }
 
@@ -150,13 +150,13 @@ async function enviarSlack(mensagem) {
     });
 
     clearTimeout(timeout);
-    log("INFO", "Mensagem enviada ao Slack");
+    log("INFO", "💬 Mensagem enviada ao Slack");
   } catch (erro) {
     if (erro.name === 'AbortError') {
-      log("ERROR", "Timeout ao enviar mensagem para Slack");
+      log("ERROR", "⏱️ Timeout ao enviar mensagem para Slack");
     } else {
-      log("ERROR", "Erro ao enviar mensagem para Slack");
-      log("ERROR", erro.message);
+      log("ERROR", "❌💬 Erro ao enviar mensagem para Slack");
+      log("ERROR", `❌erro.message`);
     }
   }
 }
@@ -164,24 +164,24 @@ async function enviarSlack(mensagem) {
 async function acessarComRetry(page, url, tentativas = 3) {
   for (let i = 1; i <= tentativas; i++) {
     try {
-      log("INFO", `Tentativa ${i} de acesso ao site...`);
+      log("INFO", `🌐 Tentativa ${i} de acesso ao site...`);
 
       await page.goto(url, {
         waitUntil: 'domcontentloaded',
         timeout: 15000
       });
 
-      log("SUCCESS", "Acesso realizado com sucesso");
+      log("SUCCESS", "🌐 Acesso realizado com sucesso");
       return true;
     } catch (erro) {
-      log("ERROR", `Erro na tentativa ${i}: ${erro.message}`);
+      log("ERROR", `🔁 Erro na tentativa ${i}: ${erro.message}`);
 
       if (i === tentativas) {
-        log("ERROR", "Falha total ao acessar o site");
+        log("ERROR", "🌐 Falha total ao acessar o site");
         return false;
       }
 
-      log("INFO", "Aguardando 5s para nova tentativa...");
+      log("INFO", "🕒 Aguardando 5s para nova tentativa...");
       await page.waitForTimeout(5000);
     }
   }
@@ -339,8 +339,8 @@ async function extrairRelatorio(page, urlConsulta) {
 
     return registrosTratados;
   } catch (erro) {
-    log("ERROR", `ERRO ao acessar relatório: ${urlConsulta}`);
-    log("ERROR", `Detalhe: ${erro.message}`);
+    log("ERROR", `📊 ERRO ao acessar relatório: ${urlConsulta}`);
+    log("ERROR", `❌ Detalhe: ${erro.message}`);
     return [];
   }
 }
@@ -378,7 +378,7 @@ async function enviarExcelOrbita(page, arquivoExcel, dataHoje) {
 
   try {
     const upload = await page.waitForSelector('input[type=file]', { timeout: 5000 });
-    console.log("Campo encontrado na página principal");
+    console.log("🔍 Campo encontrado na página principal");
     await upload.setInputFiles(arquivoExcel);
   } catch {
     await frame.locator('input[type=file]').setInputFiles(arquivoExcel);
@@ -391,7 +391,7 @@ async function enviarExcelOrbita(page, arquivoExcel, dataHoje) {
     await frame.locator('text=Carregar, visualizar e linkar').click();
     await page.waitForLoadState('networkidle');
 
-    console.log("Upload concluído");
+    console.log("🚀 Upload concluído");
   }
 
   const botaoConfirmar = frame.locator('button:has-text("Confirmar Assinaturas")');
@@ -399,7 +399,7 @@ async function enviarExcelOrbita(page, arquivoExcel, dataHoje) {
   await botaoConfirmar.click({ force: true });
   await page.waitForLoadState('networkidle');
 
-  console.log("Confirmação realizada");
+  console.log("🏁 Confirmação realizada");
   await page.waitForTimeout(2000);
 }
 
@@ -410,15 +410,15 @@ async function enviarExcelOrbita(page, arquivoExcel, dataHoje) {
 (async () => {
   
   logDivisoria('🚀 INICIANDO NOVA EXECUÇÃO DO ROBÔ');
-  log("INFO", "Iniciando verificação de rotina...");
+  log('INFO', '🕒 Iniciando verificação de rotina...');
 
   if (!dentroDoHorario()) {
-    log("INFO", "Fora do horário de execução (08:00 - 18:00). Encerrando.");
+    log("INFO", "🕒 Fora do horário de execução (08:00 - 18:00). Encerrando.");
     process.exit(0);
   }
 
   const atraso = 10000 + Math.random() * 20000;
-  console.log("Aguardando", atraso / 1000, "segundos...");
+  console.log("⏳ Aguardando", atraso / 1000, "segundos...");
   await new Promise(r => setTimeout(r, atraso));
 
   const inicioTotal = Date.now();
@@ -446,7 +446,7 @@ async function enviarExcelOrbita(page, arquivoExcel, dataHoje) {
 
   if (!sucesso) {
     if (statusAnterior !== "offline") {
-      log("ERROR", "Site ficou OFFLINE");
+      log("ERROR", "🚨 Site ficou OFFLINE");
       
       // ✅ CORRIGIDO: Adicionar aspas (template literal com backticks)
       await enviarSlack(
@@ -460,7 +460,7 @@ async function enviarExcelOrbita(page, arquivoExcel, dataHoje) {
   }
 
   if (statusAnterior === "offline") {
-    log("SUCCESS", "Site voltou ao normal");
+    log("SUCCESS", "✅ Site voltou ao normal");
     
     // ✅ CORRIGIDO: Adicionar aspas (template literal com backticks)
     await enviarSlack(
@@ -497,8 +497,8 @@ async function enviarExcelOrbita(page, arquivoExcel, dataHoje) {
   const registrosNormal = await extrairRelatorio(page, urlNormal);
   const registrosPrefeitura = await extrairRelatorio(page, urlPrefeitura);
 
-  console.log("Registros normal:", Math.max(registrosNormal.length - 1, 0));
-  console.log("Registros prefeitura:", Math.max(registrosPrefeitura.length - 1, 0));
+  console.log("Registros de Atendimento Normal:", Math.max(registrosNormal.length - 1, 0));
+  console.log("Registros de Atendimento da Prefeitura:", Math.max(registrosPrefeitura.length - 1, 0));
 
   const registrosTodos = [...registrosNormal, ...registrosPrefeitura];
 
@@ -517,13 +517,13 @@ async function enviarExcelOrbita(page, arquivoExcel, dataHoje) {
   XLSX.writeFile(workbook, caminhoArquivo);
 
   await enviarRelatorioDrive(caminhoArquivo, nomeArquivo);
-  console.log("Excel gerado:", nomeArquivo);
+  console.log("📊 Excel gerado:", nomeArquivo);
 
   const userOrbita = process.env.ORBITA_USER;
   const passOrbita = process.env.ORBITA_PASS;
 
   if (!userOrbita || !passOrbita) {
-    log("ERROR", "Credenciais do Órbita não encontradas");
+    log("ERROR", "🔐 Credenciais do Órbita não encontradas");
     await browser.close();
     process.exit(1);
   }
@@ -543,16 +543,16 @@ async function enviarExcelOrbita(page, arquivoExcel, dataHoje) {
 
   if (ultimoLog) {
     const caminhoLog = path.join(pastaLogs, ultimoLog);
-    log("INFO", "Log selecionado: " + ultimoLog);
+    log("INFO", "📁 Log selecionado: " + ultimoLog);
     await enviarLogDrive(caminhoLog, ultimoLog);
   } else {
-    log("ERROR", "Nenhum arquivo de log encontrado para envio");
+    log("ERROR", "📂 Nenhum arquivo de log encontrado para envio");
   }
 
-  log("SUCCESS", `Execução finalizada com sucesso em ${tempo(inicioTotal)}`);
+  log("SUCCESS", `🏁 Execução finalizada com sucesso em ${tempo(inicioTotal)}`);
 
   await browser.close();
-  console.log("Execução finalizada com sucesso");
+  console.log("✅ Execução finalizada com sucesso");
 })();
 
 // ===============================
@@ -563,14 +563,14 @@ async function enviarRelatorioDrive(caminhoArquivo, nomeArquivo) {
     const url = process.env.GOOGLE_SCRIPT_URL;
 
     if (!url) {
-      log("ERROR", "GOOGLE_SCRIPT_URL não definida");
+      log("ERROR", "☁️ GOOGLE_SCRIPT_URL não definida");
       return;
     }
 
     const fileBuffer = fs.readFileSync(caminhoArquivo);
     const base64 = fileBuffer.toString('base64');
 
-    log("INFO", "Enviando relatório para o Drive...");
+    log("INFO", "☁️ Enviando relatório para o Drive...");
 
     const response = await fetch(url, {
       method: 'POST',
@@ -583,10 +583,10 @@ async function enviarRelatorioDrive(caminhoArquivo, nomeArquivo) {
     });
 
     const text = await response.text();
-    log("INFO", "Resposta do Drive: " + text);
+    log("INFO", "☁️ Resposta do Drive: " + text);
   } catch (erro) {
-    log("ERROR", "Erro ao enviar relatório");
-    log("ERROR", erro.message);
+    log("ERROR", "📊 Erro ao enviar relatório");
+    log("ERROR", `❌ ${erro.message}`);
   }
 }
 
@@ -599,7 +599,7 @@ async function enviarLogDrive(caminhoLog, nomeArquivo) {
     const fileBuffer = fs.readFileSync(caminhoLog);
     const base64 = fileBuffer.toString('base64');
 
-    log("INFO", "Enviando LOG para o Drive...");
+    log("INFO", "📁 ☁️ Enviando LOG para o Drive...");
 
     const response = await fetch(url, {
       method: 'POST',
@@ -612,10 +612,10 @@ async function enviarLogDrive(caminhoLog, nomeArquivo) {
     });
 
     const text = await response.text();
-    log("INFO", "Resposta do Drive (LOG): " + text);
+    log("INFO", "☁️ Resposta do Drive (LOG): " + text);
   } catch (erro) {
-    log("ERROR", "Erro ao enviar LOG");
-    log("ERROR", erro.message);
+    log("ERROR", "📁 ☁️ Erro ao enviar LOG");
+    log("ERROR", "❌ " + erro.message);
   }
 }
 
@@ -630,7 +630,7 @@ async function obterStatusRemoto() {
       return data.status;
     } catch (erro) {
       if (i === 2) {
-        log("ERROR", "Erro ao obter status remoto");
+        log("ERROR", "📡 Erro ao obter status remoto");
         return "desconhecido";
       }
 
@@ -656,9 +656,10 @@ async function salvarStatusRemoto(status) {
     });
 
     const text = await response.text();
-    log("INFO", "Resposta do STATE: " + text);
-  } catch (erro) {
-    log("ERROR", "Erro ao salvar status remoto");
-    log("ERROR", erro.message);
-  }
+    log("INFO", "📡 Resposta do STATE: " + text);
+
+    } catch (erro) {
+    log("ERROR", "📡 Erro ao salvar status remoto");
+    log("ERROR", "❌ " + erro.message);
+    }
 }
