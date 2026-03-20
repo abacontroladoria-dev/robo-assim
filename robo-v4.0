@@ -1,4 +1,4 @@
-javascript
+js
 /**
  * @file robo-v4.0.js
  * @description Robô de automação para extração de relatórios da Assim, upload para Órbita e Google Drive,
