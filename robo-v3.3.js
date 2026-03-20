@@ -61,8 +61,8 @@ function log(tipo, mensagem) {
   }
 
   const caminhoLog = path.join(pastaLogs, `log-${dataFormatada}.txt`);
-  fs.appendFileSync(caminhoLog, linha);
 
+  fs.appendFileSync(caminhoLog, linha);
   console.log(linha.trim());
 }
 
