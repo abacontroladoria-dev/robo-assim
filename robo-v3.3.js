@@ -29,6 +29,9 @@ function dentroDoHorario() {
   return true;
 }
 
+// ================
+// FUNÇÃO LOG
+// ================
 function log(tipo, mensagem) {
   const agora = new Date();
 
@@ -65,7 +68,41 @@ function log(tipo, mensagem) {
   fs.appendFileSync(caminhoLog, linha);
   console.log(linha.trim());
 }
+// ================
+// FUNÇÃO DIVISÓRIA
+// ================
+function logDivisoria(titulo = '') {
+  const agora = new Date();
 
+  const data = agora.toLocaleDateString('pt-BR', {
+    timeZone: 'America/Sao_Paulo'
+  });
+
+  const [dia, mes, ano] = data.split('/');
+  const dataFormatada = `${ano}-${mes}-${dia}`;
+
+  const pastaLogs = path.join(__dirname, 'logs');
+
+  if (!fs.existsSync(pastaLogs)) {
+    fs.mkdirSync(pastaLogs, { recursive: true });
+  }
+
+  const caminhoLog = path.join(pastaLogs, `log-${dataFormatada}.txt`);
+
+  let bloco = `\n============================================================\n`;
+
+  if (titulo) {
+    bloco += `${titulo}\n`;
+    bloco += `============================================================\n`;
+  }
+
+  fs.appendFileSync(caminhoLog, bloco);
+  console.log(bloco.trim());
+}
+
+// ========================
+// FUNÇÃO TEMPO DE ATIVAÇÃO
+// ========================
 function tempo(inicio) {
   return ((Date.now() - inicio) / 1000).toFixed(2) + "s";
 }
