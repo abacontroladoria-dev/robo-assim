@@ -22,7 +22,7 @@ function dentroDoHorario() {
 
   if (dia === 0 || dia === 6) return false;
   if (hora < 8) return false;
-  if (hora > 18) return false;
+  if (hora >= 18) return false;
 
   return true;
 }
