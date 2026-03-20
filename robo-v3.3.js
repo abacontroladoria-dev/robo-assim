@@ -43,15 +43,26 @@ function log(tipo, mensagem) {
 
   const [dia, mes, ano] = data.split('/');
   const dataFormatada = `${ano}-${mes}-${dia}`;
-  const linha = `[${dataFormatada} ${hora}] [${tipo}] ${mensagem}\n`;
+
+  const emojis = {
+    INFO: '🔵',
+    SUCCESS: '✅',
+    ERROR: '❌',
+    WARNING: '⚠️'
+  };
+
+  const emoji = emojis[tipo] || '🔹';
+  const linha = `[${dataFormatada} ${hora}] [${tipo}] ${emoji} ${mensagem}\n`;
 
   const pastaLogs = path.join(__dirname, 'logs');
+
   if (!fs.existsSync(pastaLogs)) {
     fs.mkdirSync(pastaLogs, { recursive: true });
   }
 
   const caminhoLog = path.join(pastaLogs, `log-${dataFormatada}.txt`);
   fs.appendFileSync(caminhoLog, linha);
+
   console.log(linha.trim());
 }
 
