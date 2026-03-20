@@ -24,7 +24,7 @@ jobs:
           npx playwright install chromium
 
       - name: Executar robo
-        run: node robo-v4.0
+        run: node robo-v4.0.js
         env:
           SENHA: ${{ secrets.SENHA }}
           ORBITA_USER: ${{ secrets.ORBITA_USER }}
