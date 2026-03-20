@@ -409,9 +409,7 @@ async function enviarExcelOrbita(page, arquivoExcel, dataHoje) {
 
 (async () => {
   
-  log('INFO', '\n' + '='.repeat(50));
-  log('INFO', 'INICIANDO NOVA EXECUÇÃO DO ROBÔ');
-  log('INFO', '='.repeat(50));
+  logDivisoria('🚀 INICIANDO NOVA EXECUÇÃO DO ROBÔ');
   log("INFO", "Iniciando verificação de rotina...");
 
   if (!dentroDoHorario()) {
