@@ -164,7 +164,7 @@ async function enviarSlack(mensagem) {
 async function acessarComRetry(page, url, tentativas = 3) {
   for (let i = 1; i <= tentativas; i++) {
     try {
-      log("INFO", `🌐 Tentativa ${i} de acesso ao site...`);
+      log("INFO", `🌐 Tentativa ${i} de acesso ao site Autorizador da ASSIM...`);
 
       await page.goto(url, {
         waitUntil: 'domcontentloaded',
