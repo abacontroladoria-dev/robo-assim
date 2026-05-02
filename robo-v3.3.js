@@ -610,10 +610,10 @@ async function enviarExcelOrbita(page, arquivoExcel, dataHoje) {
   const dataArquivo = `${dia}-${mes}-${ano}`;
 
   const urlNormal =
-    `https://sirius.assim.com.br/assimcsp/autorizador/preresultado.csp?idHospital=52345&DataIni=${dataOntem}&DataFim=${dataHoje}&executor=T&natservico=T&servico=T&especialidade=T&amb=&prefeitura=0&tuss=`;
+    `https://sirius.assim.com.br/assimcsp/autorizador/preresultado.csp?idHospital=52345&DataIni=${dataOntem}&DataFim=${dataOntem}&executor=T&natservico=T&servico=T&especialidade=T&amb=&prefeitura=0&tuss=`;
 
   const urlPrefeitura =
-    `https://sirius.assim.com.br/assimcsp/autorizador/preresultado.csp?idHospital=52345&DataIni=${dataHoje}&DataFim=${dataHoje}&executor=T&natservico=T&servico=T&especialidade=T&amb=&prefeitura=1&tuss=`;
+    `https://sirius.assim.com.br/assimcsp/autorizador/preresultado.csp?idHospital=52345&DataIni=${dataOntem}&DataFim=${dataOntem}&executor=T&natservico=T&servico=T&especialidade=T&amb=&prefeitura=1&tuss=`;
 
   const registrosNormal = await extrairRelatorio(page, urlNormal);
   const registrosPrefeitura = await extrairRelatorio(page, urlPrefeitura);
