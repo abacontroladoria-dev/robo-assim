@@ -331,10 +331,7 @@ async function extrairRelatorio(page, urlConsulta) {
         const matricula = partes[0] || null;
         const beneficiario = partes[1] || partes[0] || null;
 
-        let matricula;
-        let beneficiario;
-
-        if (beneficiarioCell) {
+         if (beneficiarioCell) {
           const partes = beneficiarioCell.split('<br>');
           matricula = partes[0]?.trim();
           beneficiario = partes[1]?.trim();
