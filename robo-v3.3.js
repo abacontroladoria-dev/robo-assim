@@ -535,8 +535,11 @@ async function enviarExcelOrbita(page, arquivoExcel, dataHoje) {
   await page.locator('input[type="file"]').setInputFiles(arquivoExcel);
 
   // 🔥 preencher datas (usando name - robusto)
-  await page.locator('input[name="data_inicial"]').fill(dataHoje);
-  await page.locator('input[name="data_final"]').fill(dataHoje);
+  const [dia, mes, ano] = dataHoje.split('/');
+  const dataISO = `${ano}-${mes}-${dia}`;
+  
+  await page.locator('input[name="data_inicial"]').fill(dataISO);
+  await page.locator('input[name="data_final"]').fill(dataISO);
 
   // 🔥 botão carregar
   await page.getByRole('button', { name: 'Carregar, visualizar e linkar' }).click();
