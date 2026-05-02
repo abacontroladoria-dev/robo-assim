@@ -10,6 +10,7 @@ const { chromium } = require('playwright');
 const XLSX = require('xlsx');
 const path = require('path');
 const fs = require('fs');
+const fetch = require('node-fetch');
 
 function dentroDoHorario() {
   const agora = new Date();
@@ -68,6 +69,40 @@ function log(tipo, mensagem) {
   fs.appendFileSync(caminhoLog, linha);
   console.log(linha.trim());
 }
+
+// =====================
+// FUNÇÃO DATA PRO BANCO
+// =====================
+function converterData(dataStr) {
+  if (!dataStr) return null;
+
+  const partes = dataStr.split(' ');
+  if (partes.length < 2) return null;
+
+  const [data, hora] = partes;
+  const partesData = data.split('/');
+  if (partesData.length < 3) return null;
+
+  const [dia, mes, ano] = partesData;
+
+  return `${ano}-${mes}-${dia}T${hora}`;
+}
+
+// =====================
+// FUNÇÃO STATUS
+// =====================
+function extrairStatus(r) {
+  const texto = r["Codigo        Status     Sit"] || '';
+  
+  if (texto.includes("NAO AUTORIZADO")) return "NEGADO";
+  if (texto.includes("NEGADO")) return "NEGADO";
+  if (texto.includes("ERRO")) return "ERRO";
+  if (texto.includes("AUTORIZADO")) return "AUTORIZADO";
+
+  return "DESCONHECIDO";
+}
+
+
 // ================
 // FUNÇÃO DIVISÓRIA
 // ================
@@ -99,6 +134,31 @@ function logDivisoria(titulo = '') {
   fs.appendFileSync(caminhoLog, bloco);
   console.log(bloco.trim());
 }
+
+
+// ========================
+// FUNÇÃO AJUSTAR BANCO
+// ========================
+ function transformarParaBanco(registros) {
+      return registros
+        .filter(r => r.guia) // garante chave
+        .map(r => {
+          const [matricula, nome] = (r.beneficiario || '').split('\n');
+    
+          return {
+            guia: r.guia,
+            matricula: matricula || null,
+            paciente_nome: nome || null,
+            data_execucao: converterData(r.dataHora),
+            status: extrairStatus(r),
+            codigo_tuss: r.soli || null,
+            codigo_erro: null,
+            descricao_erro: r.justificativa || null,
+            teve_token: !!(r.token && r.token.trim())
+          };
+        });
+    }
+
 
 // ========================
 // FUNÇÃO TEMPO DE ATIVAÇÃO
@@ -156,7 +216,7 @@ async function enviarSlack(mensagem) {
       log("ERROR", "⏱️ Timeout ao enviar mensagem para Slack");
     } else {
       log("ERROR", "❌💬 Erro ao enviar mensagem para Slack");
-      log("ERROR", `❌erro.message`);
+      log("ERROR", `❌${erro.message}`);
     }
   }
 }
@@ -346,6 +406,49 @@ async function extrairRelatorio(page, urlConsulta) {
 }
 
 // =========================
+// API POST SUPABSE
+// =========================
+async function enviarParaSupabase(dados) {
+  const url = process.env.SUPABASE_URL + '/rest/v1/autorizacoes_assim';
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'apikey': key,
+        'Authorization': `Bearer ${key}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'resolution=merge-duplicates'
+      },
+      body: JSON.stringify(dados)
+    });
+
+    if (response.ok) {
+      log("SUCCESS", `📡 Supabase OK (${dados.length} registros)`);
+    } else {
+      const text = await response.text();
+      log("ERROR", `❌ Supabase erro: ${response.status}`);
+      log("ERROR", text);
+    }
+
+  } catch (erro) {
+    log("ERROR", "❌ Erro ao enviar para Supabase");
+    log("ERROR", erro.message);
+  }
+}
+
+// ============================
+// ENVIO PARA SUPABASE EM LOTES 
+// ============================
+async function enviarEmLotes(dados, tamanho = 100) {
+  for (let i = 0; i < dados.length; i += tamanho) {
+    const lote = dados.slice(i, i + tamanho);
+    await enviarParaSupabase(lote);
+  }
+}
+
+// =========================
 // LOGIN ORBITA
 // =========================
 async function loginOrbita(page, usuario, senha) {
@@ -502,6 +605,12 @@ async function enviarExcelOrbita(page, arquivoExcel, dataHoje) {
 
   const registrosTodos = [...registrosNormal, ...registrosPrefeitura];
 
+  const dadosBanco = transformarParaBanco(registrosTodos);
+
+  log("INFO", `📦 Enviando ${dadosBanco.length} registros em lotes`);
+  
+  await enviarEmLotes(dadosBanco);
+  
   const worksheet = XLSX.utils.json_to_sheet(registrosTodos);
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, "Relatorio");
