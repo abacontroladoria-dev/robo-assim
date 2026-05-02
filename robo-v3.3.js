@@ -70,6 +70,21 @@ function log(tipo, mensagem) {
 }
 
 // =====================
+// REMOVER DUPLICADOS
+// =====================
+function removerDuplicadosPorGuia(registros) {
+  const mapa = new Map();
+
+  registros.forEach(r => {
+    if (r.guia) {
+      mapa.set(r.guia, r); // mantém o último (mais atualizado)
+    }
+  });
+
+  return Array.from(mapa.values());
+}
+
+// =====================
 // FUNÇÃO DATA PRO BANCO
 // =====================
 function converterData(dataStr) {
@@ -338,8 +353,18 @@ async function extrairRelatorio(page, urlConsulta) {
         const soli = td[8]?.innerText?.trim();
         const especialidade = td[9]?.innerText?.trim();
 
-        const codigo = td[10]?.innerText?.trim();
-        const status = td[11]?.innerText?.trim();
+        const codigoStatusRaw = td[10]?.innerText?.trim() || "";
+
+        const partesCodigo = codigoStatusRaw.split(/\s+/);
+        
+        const codigo = partesCodigo[0] || null;
+        
+        // status pode vir na próxima coluna OU grudado aqui
+        let status = td[11]?.innerText?.trim();
+        
+        if (!status) {
+          status = partesCodigo.slice(1).join(' ') || null;
+        }
 
         const registro = {
           dataHora: dataHora ?? ultimoRegistro.dataHora,
@@ -654,7 +679,9 @@ async function enviarExcelOrbita(page, arquivoExcel, dataHoje) {
 
   const registrosTodos = [...registrosNormal, ...registrosPrefeitura];
 
-  const dadosBanco = transformarParaSupabase(registrosTodos);
+  const dadosBancoBruto = transformarParaSupabase(registrosTodos);
+
+  const dadosBanco = removerDuplicadosPorGuia(dadosBancoBruto);
 
   log("INFO", `📦 Enviando ${dadosBanco.length} registros em lotes`);
   
