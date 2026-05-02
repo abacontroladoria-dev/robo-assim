@@ -497,8 +497,16 @@ async function enviarExcelOrbita(page, arquivoExcel, dataHoje) {
   }
 
   const botaoConfirmar = frame.locator('button:has-text("Confirmar Assinaturas")');
-  await botaoConfirmar.waitFor({ state: 'visible', timeout: 15000 });
-  await botaoConfirmar.click({ force: true });
+
+    if (await botaoConfirmar.count() > 0) {
+      await botaoConfirmar.waitFor({ state: 'visible', timeout: 15000 });
+      await botaoConfirmar.click({ force: true });
+    
+      console.log("🏁 Confirmação realizada");
+    } else {
+      console.log("⚠️ Nenhum botão de confirmação encontrado (possivelmente sem dados)");
+    }
+  
   await page.waitForLoadState('networkidle');
 
   console.log("🏁 Confirmação realizada");
@@ -591,7 +599,7 @@ async function enviarExcelOrbita(page, arquivoExcel, dataHoje) {
   const dataArquivo = `${dia}-${mes}-${ano}`;
 
   const urlNormal =
-    `https://sirius.assim.com.br/assimcsp/autorizador/preresultado.csp?idHospital=52345&DataIni=${dataHoje}&DataFim=${dataHoje}&executor=T&natservico=T&servico=T&especialidade=T&amb=&prefeitura=0&tuss=`;
+    `https://sirius.assim.com.br/assimcsp/autorizador/preresultado.csp?idHospital=52345&DataIni=${dataOntem}&DataFim=${dataHoje}&executor=T&natservico=T&servico=T&especialidade=T&amb=&prefeitura=0&tuss=`;
 
   const urlPrefeitura =
     `https://sirius.assim.com.br/assimcsp/autorizador/preresultado.csp?idHospital=52345&DataIni=${dataHoje}&DataFim=${dataHoje}&executor=T&natservico=T&servico=T&especialidade=T&amb=&prefeitura=1&tuss=`;
@@ -609,6 +617,13 @@ async function enviarExcelOrbita(page, arquivoExcel, dataHoje) {
   log("INFO", `📦 Enviando ${dadosBanco.length} registros em lotes`);
   
   await enviarEmLotes(dadosBanco);
+
+  if (dadosBanco.length === 0) {
+    log("INFO", "📭 Nenhum dado encontrado. Pulando envio para Órbita.");
+  
+    await browser.close();
+    process.exit(0);
+  }
   
   const worksheet = XLSX.utils.json_to_sheet(registrosTodos);
   const workbook = XLSX.utils.book_new();
