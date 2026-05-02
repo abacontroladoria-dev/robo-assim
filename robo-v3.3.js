@@ -610,7 +610,7 @@ async function enviarExcelOrbita(page, arquivoExcel, dataHoje) {
   const dataArquivo = `${dia}-${mes}-${ano}`;
 
   const urlNormal =
-    `https://sirius.assim.com.br/assimcsp/autorizador/preresultado.csp?idHospital=52345&DataIni=${dataOntem}&DataFim=${dataOntem}&executor=T&natservico=T&servico=T&especialidade=T&amb=&prefeitura=0&tuss=`;
+    `https://sirius.assim.com.br/assimcsp/autorizador/preresultado.csp?idHospital=52345&DataIni30/04/2026&DataFim=30/04/2026&executor=T&natservico=T&servico=T&especialidade=T&amb=&prefeitura=0&tuss=`;
 
   const urlPrefeitura =
     `https://sirius.assim.com.br/assimcsp/autorizador/preresultado.csp?idHospital=52345&DataIni=${dataOntem}&DataFim=${dataOntem}&executor=T&natservico=T&servico=T&especialidade=T&amb=&prefeitura=1&tuss=`;
