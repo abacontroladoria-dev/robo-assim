@@ -528,13 +528,18 @@ async function enviarExcelOrbita(page, arquivoExcel, dataHoje) {
   const frame = page.frameLocator('#iframe_item_89');
 
   await page.mouse.move(5, 300);
-  await page.locator('#nav_list > li:nth-child(2)').waitFor();
-  await page.locator('#nav_list > li:nth-child(2)').click();
-  await page.locator('#nav_list > li:nth-child(2)').waitFor();
-  await page.locator('#submenu-item_29 > li:nth-child(8)').click();
-  await page.locator('#nav_list > li:nth-child(2)').waitFor();
-  await page.locator('#submenu-item_88 > li:nth-child(1) > a').click();
-  await page.waitForLoadState('domcontentloaded');
+  await page.waitForTimeout(1000);
+  
+  // navegação do sidebar baseada em texto
+  await page.locator('text=Tita Therapy').click();
+  await page.waitForTimeout(500);
+  
+  await page.locator('text=Autorização ASSIM').click();
+  await page.waitForTimeout(500);
+  
+  await page.locator('text=Upload dados assim').click();
+  await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
   try {
     const upload = await page.waitForSelector('input[type=file]', { timeout: 5000 });
