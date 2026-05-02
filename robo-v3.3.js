@@ -526,41 +526,28 @@ async function loginOrbita(page, usuario, senha) {
 // =========================
 async function enviarExcelOrbita(page, arquivoExcel, dataHoje) {
 
-  // 🔥 entra direto na página
+  // 🔥 acesso direto
   await page.goto('https://cronogramauniversoaba.com.br/blank_upload_registros_assim/', {
     waitUntil: 'networkidle'
   });
 
-  // 🔥 define frame depois da navegação
-  const frame = page.frameLocator('#iframe_item_89');
+  // 🔥 upload direto
+  await page.locator('input[type=file]').setInputFiles(arquivoExcel);
 
-  let upload;
+  // 🔥 preencher datas (formato DD/MM/YYYY)
+  const inputs = page.locator('input');
 
-  try {
-    upload = await page.waitForSelector('input[type=file]', { timeout: 3000 });
-    console.log("🔍 Upload fora do iframe");
-  } catch {
-    upload = frame.locator('input[type=file]');
-    console.log("🔍 Upload dentro do iframe");
-  }
-
-  await upload.setInputFiles(arquivoExcel);
-
-  // 🔥 preencher datas
-  const [dia, mes, ano] = dataHoje.split('/');
-  const dataInput = `${ano}-${mes}-${dia}`;
-
-  await frame.locator('input[type=date]').nth(0).fill(dataInput);
-  await frame.locator('input[type=date]').nth(1).fill(dataInput);
+  await inputs.nth(1).fill(dataHoje);
+  await inputs.nth(2).fill(dataHoje);
 
   // 🔥 botão carregar
-  await frame.locator('text=Carregar, visualizar e linkar').click();
+  await page.locator('text=Carregar, visualizar e linkar').click();
   await page.waitForLoadState('networkidle');
 
   console.log("🚀 Upload concluído");
 
-  // 🔥 botão confirmar robusto
-  const botaoConfirmar = frame.locator('button').filter({
+  // 🔥 botão confirmar (robusto)
+  const botaoConfirmar = page.locator('button').filter({
     hasText: /confirmar|finalizar|processar/i
   }).first();
 
