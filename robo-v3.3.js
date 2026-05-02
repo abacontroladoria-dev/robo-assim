@@ -331,12 +331,6 @@ async function extrairRelatorio(page, urlConsulta) {
         const matricula = partes[0] || null;
         const beneficiario = partes[1] || partes[0] || null;
 
-         if (beneficiarioCell) {
-          const partes = beneficiarioCell.split('<br>');
-          matricula = partes[0]?.trim();
-          beneficiario = partes[1]?.trim();
-        }
-
         const token = td[4]?.innerText?.trim();
         const justificativa = td[5]?.innerText?.trim();
         const processo = td[6]?.innerText?.trim();
