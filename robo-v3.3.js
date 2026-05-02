@@ -596,6 +596,17 @@ async function enviarExcelOrbita(page, arquivoExcel, dataHoje) {
   const ano = hoje.getFullYear();
 
   const dataHoje = `${dia}/${mes}/${ano}`;
+
+                  const ontem = new Date();
+                  ontem.setDate(hoje.getDate() - 1);
+                  
+                  const diaOntem = ontem.getDate().toString().padStart(2, '0');
+                  const mesOntem = (ontem.getMonth() + 1).toString().padStart(2, '0');
+                  const anoOntem = ontem.getFullYear();
+                  
+                  const dataOntem = `${diaOntem}/${mesOntem}/${anoOntem}`;
+
+  
   const dataArquivo = `${dia}-${mes}-${ano}`;
 
   const urlNormal =
