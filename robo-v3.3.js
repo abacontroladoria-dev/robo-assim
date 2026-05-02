@@ -525,57 +525,51 @@ async function loginOrbita(page, usuario, senha) {
 // UPLOAD EXCEL ORBITA
 // =========================
 async function enviarExcelOrbita(page, arquivoExcel, dataHoje) {
+
+  // 🔥 entra direto na página
+  await page.goto('https://cronogramauniversoaba.com.br/blank_upload_registros_assim/', {
+    waitUntil: 'networkidle'
+  });
+
+  // 🔥 define frame depois da navegação
   const frame = page.frameLocator('#iframe_item_89');
 
-                           // abre sidebar (hover já resolve nesse layout)
-                          await page.mouse.move(10, 200);
-                          await page.waitForTimeout(1500);
-                          
-                          // clicar menu principal
-                          await page.locator('span.label:has-text("Tita Therapy")').first().click({ force: true });
-                          await page.waitForTimeout(500);
-                          
-                          // submenu
-                          await page.locator('span.label:has-text("Autorização ASSIM")').first().click({ force: true });
-                          await page.waitForTimeout(500);
-                          
-                          // tela final
-                          await page.locator('span.label:has-text("Upload dados assim")').first().click({ force: true });
-                          
-                          await page.waitForLoadState('networkidle');
-  
-    await page.waitForLoadState('domcontentloaded');
+  let upload;
 
   try {
-    const upload = await page.waitForSelector('input[type=file]', { timeout: 5000 });
-    console.log("🔍 Campo encontrado na página principal");
-    await upload.setInputFiles(arquivoExcel);
+    upload = await page.waitForSelector('input[type=file]', { timeout: 3000 });
+    console.log("🔍 Upload fora do iframe");
   } catch {
-    await frame.locator('input[type=file]').setInputFiles(arquivoExcel);
-
-    const [dia, mes, ano] = dataHoje.split('/');
-    const dataInput = `${ano}-${mes}-${dia}`;
-
-    await frame.locator('body > div > form > div.row > div:nth-child(2) > input[type=date]').fill(dataInput);
-    await frame.locator('body > div > form > div.row > div:nth-child(3) > input[type=date]').fill(dataInput);
-    await frame.locator('text=Carregar, visualizar e linkar').click();
-    await page.waitForLoadState('networkidle');
-
-    console.log("🚀 Upload concluído");
+    upload = frame.locator('input[type=file]');
+    console.log("🔍 Upload dentro do iframe");
   }
 
-  const botaoConfirmar = frame.locator('button:has-text("Confirmar Assinaturas")');
+  await upload.setInputFiles(arquivoExcel);
 
-    if (await botaoConfirmar.count() > 0) {
-      await botaoConfirmar.waitFor({ state: 'visible', timeout: 15000 });
-      await botaoConfirmar.click({ force: true });
-    
-      console.log("🏁 Confirmação realizada");
-    } else {
-      console.log("⚠️ Nenhum botão de confirmação encontrado (possivelmente sem dados)");
-    }
-  
+  // 🔥 preencher datas
+  const [dia, mes, ano] = dataHoje.split('/');
+  const dataInput = `${ano}-${mes}-${dia}`;
+
+  await frame.locator('input[type=date]').nth(0).fill(dataInput);
+  await frame.locator('input[type=date]').nth(1).fill(dataInput);
+
+  // 🔥 botão carregar
+  await frame.locator('text=Carregar, visualizar e linkar').click();
   await page.waitForLoadState('networkidle');
+
+  console.log("🚀 Upload concluído");
+
+  // 🔥 botão confirmar robusto
+  const botaoConfirmar = frame.locator('button').filter({
+    hasText: /confirmar|finalizar|processar/i
+  }).first();
+
+  if (await botaoConfirmar.count() > 0) {
+    await botaoConfirmar.click({ force: true });
+    console.log("🏁 Confirmação realizada");
+  } else {
+    console.log("⚠️ Botão não encontrado — possível mudança de layout");
+  }
 
   await page.waitForTimeout(2000);
 }
