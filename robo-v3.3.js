@@ -350,6 +350,7 @@ async function extrairRelatorio(page, urlConsulta) {
         const justificativa = td[5]?.innerText?.trim();
         const processo = td[6]?.innerText?.trim();
         const guia = td[7]?.innerText?.trim();
+        if (!guia || !/^\d+$/.test(guia)) return;
         const soli = td[8]?.innerText?.trim();
         const especialidade = td[9]?.innerText?.trim();
 
