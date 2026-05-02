@@ -527,8 +527,12 @@ async function loginOrbita(page, usuario, senha) {
 async function enviarExcelOrbita(page, arquivoExcel, dataHoje) {
   const frame = page.frameLocator('#iframe_item_89');
 
-  await page.mouse.move(5, 300);
-  await page.waitForTimeout(1000);
+  // força abertura do menu lateral
+  await page.locator('button:has(svg)').first().click().catch(() => {});
+
+  // fallback hover (caso seja menu por hover)
+  await page.mouse.move(10, 200);
+  await page.waitForTimeout(1500);
   
   // navegação do sidebar baseada em texto
   await page.locator('text=Tita Therapy').click();
