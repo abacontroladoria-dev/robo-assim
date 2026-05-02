@@ -526,36 +526,37 @@ async function loginOrbita(page, usuario, senha) {
 // =========================
 async function enviarExcelOrbita(page, arquivoExcel, dataHoje) {
 
-  // 🔥 acesso direto
+  // 🔥 acesso direto à página
   await page.goto('https://cronogramauniversoaba.com.br/blank_upload_registros_assim/', {
     waitUntil: 'networkidle'
   });
 
-  // 🔥 upload direto
-  await page.locator('input[type=file]').setInputFiles(arquivoExcel);
+  // 🔥 upload
+  await page.locator('input[type="file"]').setInputFiles(arquivoExcel);
 
-  // 🔥 preencher datas (formato DD/MM/YYYY)
-  const inputs = page.locator('input');
-
-  await inputs.nth(1).fill(dataHoje);
-  await inputs.nth(2).fill(dataHoje);
+  // 🔥 preencher datas (usando name - robusto)
+  await page.locator('input[name="data_inicial"]').fill(dataHoje);
+  await page.locator('input[name="data_final"]').fill(dataHoje);
 
   // 🔥 botão carregar
-  await page.locator('text=Carregar, visualizar e linkar').click();
+  await page.getByRole('button', { name: 'Carregar, visualizar e linkar' }).click();
+
+  // espera processamento real (melhor que só networkidle)
   await page.waitForLoadState('networkidle');
+  await page.waitForTimeout(2000);
 
   console.log("🚀 Upload concluído");
 
-  // 🔥 botão confirmar (robusto)
-  const botaoConfirmar = page.locator('button').filter({
+  // 🔥 botão confirmar (flexível)
+  const botaoConfirmar = page.getByRole('button').filter({
     hasText: /confirmar|finalizar|processar/i
   }).first();
 
-  if (await botaoConfirmar.count() > 0) {
+  if (await botaoConfirmar.isVisible()) {
     await botaoConfirmar.click({ force: true });
     console.log("🏁 Confirmação realizada");
   } else {
-    console.log("⚠️ Botão não encontrado — possível mudança de layout");
+    console.log("⚠️ Botão não encontrado — verificar se há dados para confirmar");
   }
 
   await page.waitForTimeout(2000);
