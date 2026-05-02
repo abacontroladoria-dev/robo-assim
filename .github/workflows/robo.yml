@@ -31,7 +31,9 @@ jobs:
           ORBITA_PASS: ${{ secrets.ORBITA_PASS }}
           GOOGLE_SCRIPT_URL: ${{ secrets.GOOGLE_SCRIPT_URL }}
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
-
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+    
       - name: Upload de Artefatos
         if: always()
         uses: actions/upload-artifact@v4
