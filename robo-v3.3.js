@@ -514,10 +514,10 @@ async function enviarExcelOrbita(page, arquivoExcel, dataHoje) {
   logDivisoria('🚀 INICIANDO NOVA EXECUÇÃO DO ROBÔ');
   log('INFO', '🕒 Iniciando verificação de rotina...');
 
-  if (!dentroDoHorario()) {
-    log("INFO", "🕒 Fora do horário de execução (08:00 - 18:00). Encerrando.");
-    process.exit(0);
-  }
+  // if (!dentroDoHorario()) {
+  //  log("INFO", "🕒 Fora do horário de execução (08:00 - 18:00). Encerrando.");
+  //  process.exit(0);
+  // }
 
   const atraso = 10000 + Math.random() * 20000;
   console.log("⏳ Aguardando", atraso / 1000, "segundos...");
