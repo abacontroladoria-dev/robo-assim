@@ -10,7 +10,6 @@ const { chromium } = require('playwright');
 const XLSX = require('xlsx');
 const path = require('path');
 const fs = require('fs');
-const fetch = require('node-fetch');
 
 function dentroDoHorario() {
   const agora = new Date();
