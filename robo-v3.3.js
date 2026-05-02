@@ -527,22 +527,23 @@ async function loginOrbita(page, usuario, senha) {
 async function enviarExcelOrbita(page, arquivoExcel, dataHoje) {
   const frame = page.frameLocator('#iframe_item_89');
 
-  // força abertura do menu lateral
-  await page.locator('button:has(svg)').first().click().catch(() => {});
-
-  // fallback hover (caso seja menu por hover)
-  await page.mouse.move(10, 200);
-  await page.waitForTimeout(1500);
+                           // abre sidebar (hover já resolve nesse layout)
+                          await page.mouse.move(10, 200);
+                          await page.waitForTimeout(1500);
+                          
+                          // clicar menu principal
+                          await page.locator('span.label:has-text("Tita Therapy")').first().click({ force: true });
+                          await page.waitForTimeout(500);
+                          
+                          // submenu
+                          await page.locator('span.label:has-text("Autorização ASSIM")').first().click({ force: true });
+                          await page.waitForTimeout(500);
+                          
+                          // tela final
+                          await page.locator('span.label:has-text("Upload dados assim")').first().click({ force: true });
+                          
+                          await page.waitForLoadState('networkidle');
   
-  // navegação do sidebar baseada em texto
-  await page.locator('text=Tita Therapy').click();
-  await page.waitForTimeout(500);
-  
-  await page.locator('text=Autorização ASSIM').click();
-  await page.waitForTimeout(500);
-  
-  await page.locator('text=Upload dados assim').click();
-  await page.waitForLoadState('networkidle');
     await page.waitForLoadState('domcontentloaded');
 
   try {
