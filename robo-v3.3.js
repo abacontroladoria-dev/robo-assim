@@ -101,6 +101,28 @@ function extrairStatus(r) {
   return "DESCONHECIDO";
 }
 
+function normalizarStatus(status) {
+  if (!status) return null;
+
+  const texto = status.toUpperCase();
+
+  // ❌ NEGADOS
+  if (texto.includes("NAO AUTORIZADO")) return "NEGADO";
+  if (texto.includes("NEGADO")) return "NEGADO";
+
+  // ❌ ERROS
+  if (texto.includes("ERRO")) return "ERRO";
+
+  // ✅ LIBERADO (EQUIVALE A AUTORIZADO)
+  if (texto.includes("LIBERADO")) return "AUTORIZADO";
+
+  // fallback antigo (mantém por segurança)
+  if (texto.includes("AUTORIZADO")) return "AUTORIZADO";
+
+  console.log("⚠️ STATUS NÃO RECONHECIDO:", status);
+
+  return "DESCONHECIDO";
+}
 
 // ================
 // FUNÇÃO DIVISÓRIA
@@ -136,28 +158,39 @@ function logDivisoria(titulo = '') {
 
 
 // ========================
-// FUNÇÃO AJUSTAR BANCO
+// FUNÇÃO AJUSTAR Supabase
 // ========================
- function transformarParaBanco(registros) {
-      return registros
-        .filter(r => r.guia) // garante chave
-        .map(r => {
-          const [matricula, nome] = (r.beneficiario || '').split('\n');
-    
-          return {
-            guia: r.guia,
-            matricula: matricula || null,
-            paciente_nome: nome || null,
-            data_execucao: converterData(r.dataHora),
-            status: extrairStatus(r),
-            codigo_tuss: r.soli || null,
-            codigo_erro: null,
-            descricao_erro: r.justificativa || null,
-            teve_token: !!(r.token && r.token.trim())
-          };
-        });
-    }
+function transformarParaSupabase(registros) {
+  return registros.map(r => {
+    const linhas = (r.beneficiario || "")
+      .split('\n')
+      .map(l => l.trim())
+      .filter(Boolean);
 
+    const matricula = linhas[0] || null;
+    const nome = linhas[1] || linhas[0] || null;
+
+    return {
+      guia: r.guia?.trim() || null,
+      matricula,
+      paciente_nome: nome,
+
+      data_execucao: converterData(r.dataHora),
+      data_autorizacao: null,
+
+      status: r.status?.trim() || null,
+      codigo_tuss: r.codigo?.trim() || null,
+
+      codigo_erro: null,
+      descricao_erro: null,
+
+      teve_token: !!(r.token && r.token.trim()),
+      token: r.token?.trim() || null,
+
+      updated_at: new Date().toISOString()
+    };
+  });
+}
 
 // ========================
 // FUNÇÃO TEMPO DE ATIVAÇÃO
@@ -285,15 +318,18 @@ async function extrairRelatorio(page, urlConsulta) {
       let ultimoRegistro = {};
 
       linhas.forEach(linha => {
-        const pre = linha.querySelector('pre');
-        if (!pre) return;
-
         const td = linha.querySelectorAll('td');
+        if (td.length === 0) return;
 
         const dataHora = td[0]?.innerText?.trim();
         const sv = td[1]?.innerText?.trim();
         const nat = td[2]?.innerText?.trim();
-        const beneficiarioCell = td[3]?.innerHTML;
+        const beneficiarioRaw = td[3]?.innerText?.trim() || "";
+
+        const partes = beneficiarioRaw.split('\n').map(p => p.trim()).filter(Boolean);
+        
+        const matricula = partes[0] || null;
+        const beneficiario = partes[1] || partes[0] || null;
 
         let matricula;
         let beneficiario;
@@ -311,9 +347,8 @@ async function extrairRelatorio(page, urlConsulta) {
         const soli = td[8]?.innerText?.trim();
         const especialidade = td[9]?.innerText?.trim();
 
-        const texto = pre.innerText.trim().split(/\s+/);
-        const codigo = texto[0];
-        const status = texto.slice(1).join(' ');
+        const codigo = td[10]?.innerText?.trim();
+        const status = td[11]?.innerText?.trim();
 
         const registro = {
           dataHora: dataHora ?? ultimoRegistro.dataHora,
@@ -392,6 +427,12 @@ async function extrairRelatorio(page, urlConsulta) {
         guia: r.guia || undefined,
         soli: r.soli || undefined,
         especialidade: r.especialidade || undefined,
+      
+        // 🔥 NOVOS CAMPOS CORRETOS
+        codigo: codigo || undefined,
+        status: status || undefined,
+      
+        // (PARA O Excel)
         "Codigo        Status     Sit": codigoStatusSit || undefined
       };
     });
@@ -509,7 +550,6 @@ async function enviarExcelOrbita(page, arquivoExcel, dataHoje) {
   
   await page.waitForLoadState('networkidle');
 
-  console.log("🏁 Confirmação realizada");
   await page.waitForTimeout(2000);
 }
 
@@ -623,7 +663,7 @@ async function enviarExcelOrbita(page, arquivoExcel, dataHoje) {
 
   const registrosTodos = [...registrosNormal, ...registrosPrefeitura];
 
-  const dadosBanco = transformarParaBanco(registrosTodos);
+  const dadosBanco = transformarParaSupabase(registrosTodos);
 
   log("INFO", `📦 Enviando ${dadosBanco.length} registros em lotes`);
   
