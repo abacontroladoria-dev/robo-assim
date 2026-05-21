@@ -202,7 +202,9 @@ function transformarParaSupabase(registros) {
       teve_token: !!(r.token && r.token.trim()),
       token: r.token?.trim() || null,
 
-      updated_at: new Date().toISOString()
+      updated_at: new Date().toLocaleString('sv-SE', {
+        timeZone: 'America/Sao_Paulo'
+      }).replace(' ', 'T')
     };
   });
 }
