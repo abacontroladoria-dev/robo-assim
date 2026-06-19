@@ -6,6 +6,7 @@
 // =========================
 // IMPORTS
 // =========================
+require('dotenv').config();
 const { chromium } = require('playwright');
 const XLSX = require('xlsx');
 const path = require('path');
@@ -204,7 +205,9 @@ function transformarParaSupabase(registros) {
 
       updated_at: new Date().toLocaleString('sv-SE', {
         timeZone: 'America/Sao_Paulo'
-      }).replace(' ', 'T')
+      }).replace(' ', 'T'),
+
+      biofacial: r._biofacial?.trim() || null
     };
   });
 }
@@ -306,18 +309,45 @@ async function extrairRelatorio(page, urlConsulta) {
       timeout: 60000
     });
 
-    const currentUrl = page.url();
+    let currentUrl = page.url();
+    log("INFO", `🌐 URL final após navegação inicial: ${currentUrl}`);
 
     if (currentUrl.includes('preresultado')) {
-      const url = currentUrl.replace('preresultado', 'resultadosempaginacao');
-
-      await page.goto(url, {
+      const urlSemPaginacao = currentUrl.replace('preresultado', 'resultadosempaginacao');
+      log("INFO", `🔀 Fluxo antigo: redirecionando para resultadosempaginacao`);
+      log("INFO", `🌐 URL destino: ${urlSemPaginacao}`);
+      await page.goto(urlSemPaginacao, {
         waitUntil: 'domcontentloaded',
         timeout: 60000
       });
+      currentUrl = page.url();
+      log("INFO", `🌐 URL após redirect: ${currentUrl}`);
+    } else if (currentUrl.includes('relatorio.csp')) {
+      log("INFO", `🆕 Novo fluxo detectado: relatorio.csp com CSPToken — permanecendo na página`);
+    } else {
+      log("INFO", `🔍 URL não reconhecida no fluxo esperado — continuando na URL atual`);
     }
 
     await page.waitForSelector('pre, table', { timeout: 120000 });
+
+    // --- Diagnóstico: screenshot e HTML ---
+    try {
+      const pastaLogs = path.join(__dirname, 'logs');
+      if (!fs.existsSync(pastaLogs)) fs.mkdirSync(pastaLogs, { recursive: true });
+
+      const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 23);
+      const screenshotPath = path.join(pastaLogs, `diagnostico-relatorio-${ts}.png`);
+      const htmlPath = path.join(pastaLogs, `diagnostico-relatorio-${ts}.html`);
+
+      await page.screenshot({ path: screenshotPath, fullPage: true });
+      const htmlContent = await page.content();
+      fs.writeFileSync(htmlPath, htmlContent, 'utf-8');
+
+      log("INFO", `📸 Screenshot salvo: ${screenshotPath}`);
+      log("INFO", `📄 HTML salvo: ${htmlPath}`);
+    } catch (diagErro) {
+      log("WARNING", `⚠️ Falha ao salvar diagnóstico: ${diagErro.message}`);
+    }
 
     let extractionContext = page;
 
@@ -329,7 +359,72 @@ async function extrairRelatorio(page, urlConsulta) {
       }
     }
 
-    const registros = await extractionContext.evaluate(() => {
+    const resultado = await extractionContext.evaluate(() => {
+      // --- Localizar a linha de cabeçalho real das colunas ---
+      // Ignora linhas de título (Hospital, Periodo, Executor) que ficam antes
+      const allTrs = Array.from(document.querySelectorAll('tr'));
+      let columnHeaderRow = null;
+
+      for (const tr of allTrs) {
+        const ths = Array.from(tr.querySelectorAll('th'));
+        const texts = ths.map(th => (th.innerText || '').trim().toLowerCase());
+        // A linha de cabeçalho real contém 'guia' junto com 'sv' ou 'nat'
+        if (texts.some(t => t === 'guia') && texts.some(t => t === 'sv' || t === 'nat')) {
+          columnHeaderRow = tr;
+          break;
+        }
+      }
+
+      // Fallback: primeira linha com mais de 8 th elementos
+      if (!columnHeaderRow) {
+        for (const tr of allTrs) {
+          if (tr.querySelectorAll('th').length > 8) {
+            columnHeaderRow = tr;
+            break;
+          }
+        }
+      }
+
+      const headers = columnHeaderRow
+        ? Array.from(columnHeaderRow.querySelectorAll('th')).map(th => (th.innerText || '').trim())
+        : [];
+
+      // Mapa baseado APENAS na linha de cabeçalho real → índice = posição do td nas linhas de dados
+      const headerMap = {};
+      headers.forEach((h, i) => {
+        headerMap[h.toLowerCase().replace(/\s+/g, ' ')] = i;
+      });
+
+      function resolverCol(...candidatos) {
+        for (const c of candidatos) {
+          const idx = headerMap[c.toLowerCase().replace(/\s+/g, ' ')];
+          if (idx !== undefined) return idx;
+        }
+        return -1;
+      }
+
+      const colDataHora  = resolverCol('data hora', 'data/hora', 'data', 'dt/hr', 'dt.hr');
+      const colSv        = resolverCol('sv', 's.v.', 'serviço', 'servico');
+      const colNat       = resolverCol('nat', 'nat.', 'natureza');
+      const colBenefic   = resolverCol('beneficiário', 'beneficiario', 'paciente', 'segurado', 'benefic.');
+      const colBiofacial = resolverCol('biofacial', 'bio facial', 'biometria facial');
+      const colToken     = resolverCol('token', 'senha');
+      const colJustif    = resolverCol('justificativa', 'justif.', 'justif');
+      const colProcesso  = resolverCol('processo', 'n° processo', 'n.processo', 'nº processo');
+      const colGuia      = resolverCol('guia', 'n° guia', 'n.guia', 'nº guia');
+      const colSoli      = resolverCol('soli', 'solicitante', 'médico', 'medico');
+      const colEspec     = resolverCol('especialidade', 'espec.', 'espec');
+
+      // Codigo e Status não têm <th> próprio — ficam logo após Especialidade
+      const colCodigo = colEspec >= 0 ? colEspec + 1 : 11;
+      const colStatus = colEspec >= 0 ? colEspec + 2 : 12;
+
+      const mapeamento = {
+        colDataHora, colSv, colNat, colBenefic, colBiofacial, colToken, colJustif,
+        colProcesso, colGuia, colSoli, colEspec, colCodigo, colStatus,
+        totalHeadersEncontrados: headers.length
+      };
+
       const linhas = Array.from(document.querySelectorAll('tr'));
       const dados = [];
       let ultimoRegistro = {};
@@ -338,48 +433,52 @@ async function extrairRelatorio(page, urlConsulta) {
         const td = linha.querySelectorAll('td');
         if (td.length === 0) return;
 
-        const dataHora = td[0]?.innerText?.trim();
-        const sv = td[1]?.innerText?.trim();
-        const nat = td[2]?.innerText?.trim();
-        const beneficiarioRaw = td[3]?.innerText?.trim() || "";
+        function getText(idxMapeado, idxFallback) {
+          const idx = idxMapeado >= 0 ? idxMapeado : idxFallback;
+          if (idx < 0 || idx >= td.length) return undefined;
+          return td[idx]?.innerText?.trim() || undefined;
+        }
+
+        const dataHora        = getText(colDataHora, 0);
+        const sv              = getText(colSv, 1);
+        const nat             = getText(colNat, 2);
+        const beneficiarioRaw = getText(colBenefic, 3) || "";
 
         const partes = beneficiarioRaw.split('\n').map(p => p.trim()).filter(Boolean);
-        
-        const matricula = partes[0] || null;
+        const matricula    = partes[0] || null;
         const beneficiario = partes[1] || partes[0] || null;
 
-        const token = td[4]?.innerText?.trim();
-        const justificativa = td[5]?.innerText?.trim();
-        const processo = td[6]?.innerText?.trim();
-        const guia = td[7]?.innerText?.trim();
+        // fallbacks atualizados: Biofacial ocupa posição 4, Token desloca para 5
+        const biofacial     = getText(colBiofacial, 4);
+        const token         = getText(colToken, 5);
+        const justificativa = getText(colJustif, 6);
+        const processo      = getText(colProcesso, 7);
+        const guia          = getText(colGuia, 8);
         if (!guia || !/^\d+$/.test(guia)) return;
-        const soli = td[8]?.innerText?.trim();
-        const especialidade = td[9]?.innerText?.trim();
+        const soli          = getText(colSoli, 9);
+        const especialidade = getText(colEspec, 10);
 
-        const codigoStatusRaw = td[10]?.innerText?.trim() || "";
-
+        const codigoStatusRaw = getText(colCodigo, 11) || "";
         const partesCodigo = codigoStatusRaw.split(/\s+/);
-        
         const codigo = partesCodigo[0] || null;
-        
-        // status pode vir na próxima coluna OU grudado aqui
-        let status = td[11]?.innerText?.trim();
-        
+
+        let status = getText(colStatus, 12);
         if (!status) {
           status = partesCodigo.slice(1).join(' ') || null;
         }
 
         const registro = {
-          dataHora: dataHora ?? ultimoRegistro.dataHora,
-          sv: sv ?? ultimoRegistro.sv,
-          nat: nat ?? ultimoRegistro.nat,
-          matricula: matricula ?? ultimoRegistro.matricula,
-          beneficiario: beneficiario ?? ultimoRegistro.beneficiario,
-          token: token ?? ultimoRegistro.token,
+          dataHora:      dataHora      ?? ultimoRegistro.dataHora,
+          sv:            sv            ?? ultimoRegistro.sv,
+          nat:           nat           ?? ultimoRegistro.nat,
+          matricula:     matricula     ?? ultimoRegistro.matricula,
+          beneficiario:  beneficiario  ?? ultimoRegistro.beneficiario,
+          biofacial:     biofacial     ?? ultimoRegistro.biofacial,
+          token:         token         ?? ultimoRegistro.token,
           justificativa: justificativa ?? ultimoRegistro.justificativa,
-          processo: processo ?? ultimoRegistro.processo,
-          guia: guia ?? ultimoRegistro.guia,
-          soli: soli ?? ultimoRegistro.soli,
+          processo:      processo      ?? ultimoRegistro.processo,
+          guia:          guia          ?? ultimoRegistro.guia,
+          soli:          soli          ?? ultimoRegistro.soli,
           especialidade: especialidade ?? ultimoRegistro.especialidade,
           codigo,
           status
@@ -389,10 +488,14 @@ async function extrairRelatorio(page, urlConsulta) {
         ultimoRegistro = registro;
       });
 
-      return dados;
+      return { dados, headers, mapeamento };
     });
 
-    const registrosFiltrados = registros.filter(r =>
+    log("INFO", `📋 Colunas detectadas na tabela: ${resultado.headers.length}`);
+    log("INFO", `📋 Cabeçalhos: ${resultado.headers.join(' | ')}`);
+    log("INFO", `🗺️ Mapeamento de colunas: ${JSON.stringify(resultado.mapeamento)}`);
+
+    const registrosFiltrados = resultado.dados.filter(r =>
       !((r.matricula || '').trim() === '' && (r.beneficiario || '').trim() === '')
     );
 
@@ -446,13 +549,12 @@ async function extrairRelatorio(page, urlConsulta) {
         guia: r.guia || undefined,
         soli: r.soli || undefined,
         especialidade: r.especialidade || undefined,
-      
-        // 🔥 NOVOS CAMPOS CORRETOS
         codigo: codigo || undefined,
         status: status || undefined,
-      
-        // (PARA O Excel)
-        "Codigo        Status     Sit": codigoStatusSit || undefined
+        "Codigo        Status     Sit": codigoStatusSit || undefined,
+
+        // campo interno: vai para o Supabase mas NÃO para o Excel do Órbita
+        _biofacial: r.biofacial || undefined
       };
     });
 
@@ -650,66 +752,48 @@ async function enviarExcelOrbita(page, arquivoExcel, dataHoje) {
   const ano = hoje.getFullYear();
 
   const dataHoje = `${dia}/${mes}/${ano}`;
-
-                  const ontem = new Date();
-                  ontem.setDate(hoje.getDate() - 1);
-                  
-                  const diaOntem = ontem.getDate().toString().padStart(2, '0');
-                  const mesOntem = (ontem.getMonth() + 1).toString().padStart(2, '0');
-                  const anoOntem = ontem.getFullYear();
-                  
-                  const dataOntem = `${diaOntem}/${mesOntem}/${anoOntem}`;
-
-  
   const dataArquivo = `${dia}-${mes}-${ano}`;
 
-  log("INFO", `Data utilizada na consulta: ${dataHoje}`);
-log("INFO", `URL NORMAL: ${urlNormal}`);
-  
-const urlNormal =
-  `https://sirius.assim.com.br/assimcsp/autorizador/preresultado.csp?idHospital=52345&DataIni=${dataHoje}&DataFim=${dataHoje}&executor=T&natservico=T&servico=T&especialidade=T&amb=&prefeitura=0&tuss=`;
+  const urlNormal =
+    `https://sirius.assim.com.br/assimcsp/autorizador/preresultado.csp?idHospital=52345&DataIni=${dataHoje}&DataFim=${dataHoje}&executor=52345&natservico=T&servico=T&especialidade=T&amb=&prefeitura=0&tuss=`;
   const urlPrefeitura =
-    `https://sirius.assim.com.br/assimcsp/autorizador/preresultado.csp?idHospital=52345&DataIni=${dataHoje}&DataFim=${dataHoje}&executor=T&natservico=T&servico=T&especialidade=T&amb=&prefeitura=1&tuss=`;
+    `https://sirius.assim.com.br/assimcsp/autorizador/preresultado.csp?idHospital=52345&DataIni=${dataHoje}&DataFim=${dataHoje}&executor=52345&natservico=T&servico=T&especialidade=T&amb=&prefeitura=1&tuss=`;
 
-  const registrosNormal = await extrairRelatorio(page, urlNormal);
+  log("INFO", `Data: ${dataHoje}`);
+  log("INFO", `URL NORMAL: ${urlNormal}`);
+
+  const registrosNormal     = await extrairRelatorio(page, urlNormal);
   const registrosPrefeitura = await extrairRelatorio(page, urlPrefeitura);
 
-  console.log("Registros de Atendimento Normal:", Math.max(registrosNormal.length - 1, 0));
-  console.log("Registros de Atendimento da Prefeitura:", Math.max(registrosPrefeitura.length - 1, 0));
+  console.log("Registros Normal:",     registrosNormal.length);
+  console.log("Registros Prefeitura:", registrosPrefeitura.length);
 
   const registrosTodos = [...registrosNormal, ...registrosPrefeitura];
 
   const dadosBancoBruto = transformarParaSupabase(registrosTodos);
-
   const dadosBanco = removerDuplicadosPorGuia(dadosBancoBruto);
 
   log("INFO", `📦 Enviando ${dadosBanco.length} registros em lotes`);
-  
   await enviarEmLotes(dadosBanco);
 
   if (dadosBanco.length === 0) {
     log("INFO", "📭 Nenhum dado encontrado. Pulando envio para Órbita.");
-  
     await browser.close();
     process.exit(0);
   }
-  
-  const worksheet = XLSX.utils.json_to_sheet(registrosTodos);
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, "Relatorio");
+
+  const pastaRelatorios = path.join(__dirname, 'relatorios');
+  if (!fs.existsSync(pastaRelatorios)) fs.mkdirSync(pastaRelatorios, { recursive: true });
 
   const nomeArquivo = `relatorio_assim_${dataArquivo}.xlsx`;
-  const pastaRelatorios = path.join(__dirname, 'relatorios');
-
-  if (!fs.existsSync(pastaRelatorios)) {
-    fs.mkdirSync(pastaRelatorios, { recursive: true });
-  }
-
+  const dados = registrosTodos.map(({ _biofacial, ...r }) => r);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(dados), "Relatorio");
   const caminhoArquivo = path.join(pastaRelatorios, nomeArquivo);
-  XLSX.writeFile(workbook, caminhoArquivo);
+  XLSX.writeFile(wb, caminhoArquivo);
+  log("INFO", `📊 Excel gerado: ${nomeArquivo} (${registrosTodos.length} registros)`);
 
   await enviarRelatorioDrive(caminhoArquivo, nomeArquivo);
-  console.log("📊 Excel gerado:", nomeArquivo);
 
   const userOrbita = process.env.ORBITA_USER;
   const passOrbita = process.env.ORBITA_PASS;
@@ -721,6 +805,8 @@ const urlNormal =
   }
 
   await loginOrbita(page, userOrbita, passOrbita);
+
+  log("INFO", `📤 Enviando relatório de hoje (${dataHoje}) para Órbita...`);
   await enviarExcelOrbita(page, caminhoArquivo, dataHoje);
 
   console.log("Tempo TOTAL:", tempo(inicioTotal));
