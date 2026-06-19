@@ -135,7 +135,7 @@ function normalizarStatus(status) {
   // fallback antigo (mantém por segurança)
   if (texto.includes("AUTORIZADO")) return "AUTORIZADO";
 
-  console.log("⚠️ STATUS NÃO RECONHECIDO:", status);
+  log("WARNING", `⚠️ Status não reconhecido: "${status}"`);
 
   return "DESCONHECIDO";
 }
@@ -310,18 +310,15 @@ async function extrairRelatorio(page, urlConsulta) {
     });
 
     let currentUrl = page.url();
-    log("INFO", `🌐 URL final após navegação inicial: ${currentUrl}`);
 
     if (currentUrl.includes('preresultado')) {
       const urlSemPaginacao = currentUrl.replace('preresultado', 'resultadosempaginacao');
       log("INFO", `🔀 Fluxo antigo: redirecionando para resultadosempaginacao`);
-      log("INFO", `🌐 URL destino: ${urlSemPaginacao}`);
       await page.goto(urlSemPaginacao, {
         waitUntil: 'domcontentloaded',
         timeout: 60000
       });
       currentUrl = page.url();
-      log("INFO", `🌐 URL após redirect: ${currentUrl}`);
     } else if (currentUrl.includes('relatorio.csp')) {
       log("INFO", `🆕 Novo fluxo detectado: relatorio.csp com CSPToken — permanecendo na página`);
     } else {
@@ -329,25 +326,6 @@ async function extrairRelatorio(page, urlConsulta) {
     }
 
     await page.waitForSelector('pre, table', { timeout: 120000 });
-
-    // --- Diagnóstico: screenshot e HTML ---
-    try {
-      const pastaLogs = path.join(__dirname, 'logs');
-      if (!fs.existsSync(pastaLogs)) fs.mkdirSync(pastaLogs, { recursive: true });
-
-      const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 23);
-      const screenshotPath = path.join(pastaLogs, `diagnostico-relatorio-${ts}.png`);
-      const htmlPath = path.join(pastaLogs, `diagnostico-relatorio-${ts}.html`);
-
-      await page.screenshot({ path: screenshotPath, fullPage: true });
-      const htmlContent = await page.content();
-      fs.writeFileSync(htmlPath, htmlContent, 'utf-8');
-
-      log("INFO", `📸 Screenshot salvo: ${screenshotPath}`);
-      log("INFO", `📄 HTML salvo: ${htmlPath}`);
-    } catch (diagErro) {
-      log("WARNING", `⚠️ Falha ao salvar diagnóstico: ${diagErro.message}`);
-    }
 
     let extractionContext = page;
 
@@ -473,8 +451,8 @@ async function extrairRelatorio(page, urlConsulta) {
           nat:           nat           ?? ultimoRegistro.nat,
           matricula:     matricula     ?? ultimoRegistro.matricula,
           beneficiario:  beneficiario  ?? ultimoRegistro.beneficiario,
-          biofacial:     biofacial     ?? ultimoRegistro.biofacial,
-          token:         token         ?? ultimoRegistro.token,
+          biofacial:     biofacial,
+          token:         token,
           justificativa: justificativa ?? ultimoRegistro.justificativa,
           processo:      processo      ?? ultimoRegistro.processo,
           guia:          guia          ?? ultimoRegistro.guia,
@@ -492,8 +470,6 @@ async function extrairRelatorio(page, urlConsulta) {
     });
 
     log("INFO", `📋 Colunas detectadas na tabela: ${resultado.headers.length}`);
-    log("INFO", `📋 Cabeçalhos: ${resultado.headers.join(' | ')}`);
-    log("INFO", `🗺️ Mapeamento de colunas: ${JSON.stringify(resultado.mapeamento)}`);
 
     const registrosFiltrados = resultado.dados.filter(r =>
       !((r.matricula || '').trim() === '' && (r.beneficiario || '').trim() === '')
@@ -652,8 +628,6 @@ async function enviarExcelOrbita(page, arquivoExcel, dataHoje) {
   await page.waitForLoadState('networkidle');
   await page.waitForTimeout(2000);
 
-  console.log("🚀 Upload concluído");
-
   // 🔥 botão confirmar (flexível)
   const botaoConfirmar = page.getByRole('button').filter({
     hasText: /confirmar|finalizar|processar/i
@@ -661,9 +635,9 @@ async function enviarExcelOrbita(page, arquivoExcel, dataHoje) {
 
   if (await botaoConfirmar.isVisible()) {
     await botaoConfirmar.click({ force: true });
-    console.log("🏁 Confirmação realizada");
+    log("SUCCESS", "🏁 Upload Órbita confirmado");
   } else {
-    console.log("⚠️ Botão não encontrado — verificar se há dados para confirmar");
+    log("WARNING", "⚠️ Botão de confirmação não encontrado no Órbita");
   }
 
   await page.waitForTimeout(2000);
@@ -684,7 +658,7 @@ async function enviarExcelOrbita(page, arquivoExcel, dataHoje) {
   // }
 
   const atraso = 10000 + Math.random() * 20000;
-  console.log("⏳ Aguardando", atraso / 1000, "segundos...");
+  log("INFO", `⏳ Aguardando ${(atraso / 1000).toFixed(1)}s antes de iniciar...`);
   await new Promise(r => setTimeout(r, atraso));
 
   const inicioTotal = Date.now();
@@ -759,14 +733,10 @@ async function enviarExcelOrbita(page, arquivoExcel, dataHoje) {
   const urlPrefeitura =
     `https://sirius.assim.com.br/assimcsp/autorizador/preresultado.csp?idHospital=52345&DataIni=${dataHoje}&DataFim=${dataHoje}&executor=52345&natservico=T&servico=T&especialidade=T&amb=&prefeitura=1&tuss=`;
 
-  log("INFO", `Data: ${dataHoje}`);
-  log("INFO", `URL NORMAL: ${urlNormal}`);
-
   const registrosNormal     = await extrairRelatorio(page, urlNormal);
   const registrosPrefeitura = await extrairRelatorio(page, urlPrefeitura);
 
-  console.log("Registros Normal:",     registrosNormal.length);
-  console.log("Registros Prefeitura:", registrosPrefeitura.length);
+  log("INFO", `📋 Normal: ${registrosNormal.length} | Prefeitura: ${registrosPrefeitura.length}`);
 
   const registrosTodos = [...registrosNormal, ...registrosPrefeitura];
 
@@ -809,8 +779,6 @@ async function enviarExcelOrbita(page, arquivoExcel, dataHoje) {
   log("INFO", `📤 Enviando relatório de hoje (${dataHoje}) para Órbita...`);
   await enviarExcelOrbita(page, caminhoArquivo, dataHoje);
 
-  console.log("Tempo TOTAL:", tempo(inicioTotal));
-
   const pastaLogs = path.join(__dirname, 'logs');
   const arquivos = fs.readdirSync(pastaLogs);
 
@@ -821,16 +789,14 @@ async function enviarExcelOrbita(page, arquivoExcel, dataHoje) {
 
   if (ultimoLog) {
     const caminhoLog = path.join(pastaLogs, ultimoLog);
-    log("INFO", "📁 Log selecionado: " + ultimoLog);
     await enviarLogDrive(caminhoLog, ultimoLog);
   } else {
     log("ERROR", "📂 Nenhum arquivo de log encontrado para envio");
   }
 
-  log("SUCCESS", `🏁 Execução finalizada com sucesso em ${tempo(inicioTotal)}`);
+  log("SUCCESS", `🏁 Execução finalizada em ${tempo(inicioTotal)}`);
 
   await browser.close();
-  console.log("✅ Execução finalizada com sucesso");
 })();
 
 // ===============================
@@ -860,11 +826,9 @@ async function enviarRelatorioDrive(caminhoArquivo, nomeArquivo) {
       })
     });
 
-    const text = await response.text();
-    log("INFO", "☁️ Resposta do Drive: " + text);
+    await response.text();
   } catch (erro) {
-    log("ERROR", "📊 Erro ao enviar relatório");
-    log("ERROR", `❌ ${erro.message}`);
+    log("ERROR", `☁️ Erro ao enviar relatório para o Drive: ${erro.message}`);
   }
 }
 
@@ -889,11 +853,9 @@ async function enviarLogDrive(caminhoLog, nomeArquivo) {
       })
     });
 
-    const text = await response.text();
-    log("INFO", "☁️ Resposta do Drive (LOG): " + text);
+    await response.text();
   } catch (erro) {
-    log("ERROR", "📁 ☁️ Erro ao enviar LOG");
-    log("ERROR", "❌ " + erro.message);
+    log("ERROR", `☁️ Erro ao enviar LOG para o Drive: ${erro.message}`);
   }
 }
 
@@ -933,11 +895,8 @@ async function salvarStatusRemoto(status) {
       })
     });
 
-    const text = await response.text();
-    log("INFO", "📡 Resposta do STATE: " + text);
-
-    } catch (erro) {
-    log("ERROR", "📡 Erro ao salvar status remoto");
-    log("ERROR", "❌ " + erro.message);
-    }
+    await response.text();
+  } catch (erro) {
+    log("ERROR", `📡 Erro ao salvar status remoto: ${erro.message}`);
+  }
 }
