@@ -657,7 +657,7 @@ async function enviarExcelOrbita(page, arquivoExcel, dataHoje) {
   //  process.exit(0);
   // }
 
-  const atraso = 10000 + Math.random() * 20000;
+  const atraso = 1000 + Math.random() * 4000;
   log("INFO", `⏳ Aguardando ${(atraso / 1000).toFixed(1)}s antes de iniciar...`);
   await new Promise(r => setTimeout(r, atraso));
 
