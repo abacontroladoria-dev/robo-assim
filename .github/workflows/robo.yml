@@ -4,25 +4,37 @@ on:
 
 concurrency:
   group: automacao-assim-orbita
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   run-robo:
     runs-on: ubuntu-latest
+    env:
+      PLAYWRIGHT_BROWSERS_PATH: ~/.cache/ms-playwright
     steps:
       - name: Clonar repositorio
         uses: actions/checkout@v4
-
+        
       - name: Instalar Node
         uses: actions/setup-node@v4
         with:
           node-version: 22
-
+          cache: npm
+      
       - name: Instalar dependencias
-        run: |
-          npm ci
-          npx playwright install chromium
-
+        run: npm ci
+      
+      - name: Cache do Playwright
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}  
+          restore-keys: |
+            playwright-${{ runner.os }}-
+      
+      - name: Instalar Chromium
+        run: npx playwright install --with-deps chromium
+  
       - name: Executar robo
         run: node robo-v3.3.js
         env:
