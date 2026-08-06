@@ -20,7 +20,7 @@ jobs:
 
       - name: Instalar dependencias
         run: |
-          npm install
+          npm ci
           npx playwright install chromium
 
       - name: Executar robo
