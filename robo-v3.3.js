@@ -576,13 +576,54 @@ async function enviarParaSupabase(dados) {
 }
 
 // ============================
-// ENVIO PARA SUPABASE EM LOTES 
+// ENVIO PARA SUPABASE EM LOTES
 // ============================
 async function enviarEmLotes(dados, tamanho = 100) {
   for (let i = 0; i < dados.length; i += tamanho) {
     const lote = dados.slice(i, i + tamanho);
     await enviarParaSupabase(lote);
   }
+}
+
+// ==================================================
+// BUSCAR EXISTENTES NO SUPABASE (para enviar só o que mudou)
+// ==================================================
+async function buscarExistentesSupabase(dataInicioISO, dataFimExclusivoISO) {
+  const url = `${process.env.SUPABASE_URL}/rest/v1/autorizacoes_assim` +
+    `?data_execucao=gte.${dataInicioISO}&data_execucao=lt.${dataFimExclusivoISO}` +
+    `&select=guia,status,token,teve_token,biofacial`;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  try {
+    const response = await fetch(url, {
+      headers: {
+        'apikey': key,
+        'Authorization': `Bearer ${key}`
+      }
+    });
+
+    if (!response.ok) {
+      log("ERROR", `❌ Supabase erro ao buscar existentes: ${response.status}`);
+      return new Map();
+    }
+
+    const registros = await response.json();
+    return new Map(registros.map(r => [r.guia, r]));
+  } catch (erro) {
+    log("ERROR", `❌ Erro ao buscar registros existentes no Supabase: ${erro.message}`);
+    return new Map();
+  }
+}
+
+function registroMudou(novo, existente) {
+  if (!existente) return true;
+
+  return (
+    (novo.status || null) !== (existente.status || null) ||
+    (novo.token || null) !== (existente.token || null) ||
+    !!novo.teve_token !== !!existente.teve_token ||
+    (novo.biofacial || null) !== (existente.biofacial || null)
+  );
 }
 
 // =========================
@@ -604,7 +645,7 @@ async function loginOrbita(page, usuario, senha) {
 // =========================
 // UPLOAD EXCEL ORBITA
 // =========================
-async function enviarExcelOrbita(page, arquivoExcel, dataHoje) {
+async function enviarExcelOrbita(page, arquivoExcel, dataInicio, dataFim) {
 
   // 🔥 acesso direto à página
   await page.goto('https://cronogramauniversoaba.com.br/blank_upload_registros_assim/', {
@@ -615,11 +656,13 @@ async function enviarExcelOrbita(page, arquivoExcel, dataHoje) {
   await page.locator('input[type="file"]').setInputFiles(arquivoExcel);
 
   // 🔥 preencher datas (usando name - robusto)
-  const [dia, mes, ano] = dataHoje.split('/');
-  const dataISO = `${ano}-${mes}-${dia}`;
-  
-  await page.locator('input[name="data_inicial"]').fill(dataISO);
-  await page.locator('input[name="data_final"]').fill(dataISO);
+  const [diaIni, mesIni, anoIni] = dataInicio.split('/');
+  const [diaFim, mesFim, anoFim] = dataFim.split('/');
+  const dataInicioISO = `${anoIni}-${mesIni}-${diaIni}`;
+  const dataFimISO = `${anoFim}-${mesFim}-${diaFim}`;
+
+  await page.locator('input[name="data_inicial"]').fill(dataInicioISO);
+  await page.locator('input[name="data_final"]').fill(dataFimISO);
 
   // 🔥 botão carregar
   await page.getByRole('button', { name: 'Carregar, visualizar e linkar' }).click();
@@ -720,18 +763,37 @@ async function enviarExcelOrbita(page, arquivoExcel, dataHoje) {
 
   await page.waitForSelector('select[name="DiaFim"]');
 
-  const hoje = new Date();
-  const dia = hoje.getDate().toString().padStart(2, '0');
-  const mes = (hoje.getMonth() + 1).toString().padStart(2, '0');
-  const ano = hoje.getFullYear();
+  // 🗓️ "Hoje" sempre no fuso de São Paulo, para não errar o dia em execuções perto da meia-noite
+  const hoje = new Date(
+    new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' })
+  );
 
-  const dataHoje = `${dia}/${mes}/${ano}`;
-  const dataArquivo = `${dia}-${mes}-${ano}`;
+  // 🗓️ Segunda-feira da semana vigente: relatório sempre cobre de segunda até hoje
+  const diaSemana = hoje.getDay(); // 0=domingo ... 6=sábado
+  const deslocamentoSegunda = diaSemana === 0 ? 6 : diaSemana - 1;
+  const segundaFeira = new Date(hoje);
+  segundaFeira.setDate(hoje.getDate() - deslocamentoSegunda);
+
+  function formatarData(data) {
+    const dia = data.getDate().toString().padStart(2, '0');
+    const mes = (data.getMonth() + 1).toString().padStart(2, '0');
+    const ano = data.getFullYear();
+    return { dia, mes, ano, br: `${dia}/${mes}/${ano}`, arquivo: `${dia}-${mes}-${ano}` };
+  }
+
+  const inicioSemana = formatarData(segundaFeira);
+  const fimSemana = formatarData(hoje);
+
+  const dataInicio = inicioSemana.br;
+  const dataFim = fimSemana.br;
+  const dataArquivo = dataInicio === dataFim
+    ? inicioSemana.arquivo
+    : `${inicioSemana.arquivo}_a_${fimSemana.arquivo}`;
 
   const urlNormal =
-    `https://sirius.assim.com.br/assimcsp/autorizador/preresultado.csp?idHospital=52345&DataIni=${dataHoje}&DataFim=${dataHoje}&executor=52345&natservico=T&servico=T&especialidade=T&amb=&prefeitura=0&tuss=`;
+    `https://sirius.assim.com.br/assimcsp/autorizador/preresultado.csp?idHospital=52345&DataIni=${dataInicio}&DataFim=${dataFim}&executor=52345&natservico=T&servico=T&especialidade=T&amb=&prefeitura=0&tuss=`;
   const urlPrefeitura =
-    `https://sirius.assim.com.br/assimcsp/autorizador/preresultado.csp?idHospital=52345&DataIni=${dataHoje}&DataFim=${dataHoje}&executor=52345&natservico=T&servico=T&especialidade=T&amb=&prefeitura=1&tuss=`;
+    `https://sirius.assim.com.br/assimcsp/autorizador/preresultado.csp?idHospital=52345&DataIni=${dataInicio}&DataFim=${dataFim}&executor=52345&natservico=T&servico=T&especialidade=T&amb=&prefeitura=1&tuss=`;
 
   const registrosNormal     = await extrairRelatorio(page, urlNormal);
   const registrosPrefeitura = await extrairRelatorio(page, urlPrefeitura);
@@ -743,13 +805,31 @@ async function enviarExcelOrbita(page, arquivoExcel, dataHoje) {
   const dadosBancoBruto = transformarParaSupabase(registrosTodos);
   const dadosBanco = removerDuplicadosPorGuia(dadosBancoBruto);
 
-  log("INFO", `📦 Enviando ${dadosBanco.length} registros em lotes`);
-  await enviarEmLotes(dadosBanco);
-
   if (dadosBanco.length === 0) {
     log("INFO", "📭 Nenhum dado encontrado. Pulando envio para Órbita.");
     await browser.close();
     process.exit(0);
+  }
+
+  // 🔎 Busca o que já está salvo na semana vigente e envia ao Supabase só quem mudou
+  const diaSeguinte = new Date(hoje);
+  diaSeguinte.setDate(hoje.getDate() + 1);
+  const fimExclusivo = formatarData(diaSeguinte);
+
+  const inicioSemanaISO = `${inicioSemana.ano}-${inicioSemana.mes}-${inicioSemana.dia}`;
+  const fimExclusivoISO = `${fimExclusivo.ano}-${fimExclusivo.mes}-${fimExclusivo.dia}`;
+
+  const existentesSupabase = await buscarExistentesSupabase(inicioSemanaISO, fimExclusivoISO);
+  const registrosAlterados = dadosBanco.filter(r =>
+    registroMudou(r, existentesSupabase.get(r.guia))
+  );
+
+  log("INFO", `📦 ${registrosAlterados.length} de ${dadosBanco.length} registros mudaram — enviando ao Supabase`);
+
+  if (registrosAlterados.length > 0) {
+    await enviarEmLotes(registrosAlterados);
+  } else {
+    log("INFO", "📭 Nenhuma alteração desde o último envio ao Supabase.");
   }
 
   const pastaRelatorios = path.join(__dirname, 'relatorios');
@@ -776,8 +856,8 @@ async function enviarExcelOrbita(page, arquivoExcel, dataHoje) {
 
   await loginOrbita(page, userOrbita, passOrbita);
 
-  log("INFO", `📤 Enviando relatório de hoje (${dataHoje}) para Órbita...`);
-  await enviarExcelOrbita(page, caminhoArquivo, dataHoje);
+  log("INFO", `📤 Enviando relatório da semana vigente (${dataInicio} a ${dataFim}) para Órbita...`);
+  await enviarExcelOrbita(page, caminhoArquivo, dataInicio, dataFim);
 
   const pastaLogs = path.join(__dirname, 'logs');
   const arquivos = fs.readdirSync(pastaLogs);
