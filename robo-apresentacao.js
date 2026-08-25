@@ -9,7 +9,6 @@
 //   • Sem delay aleatório de 10–30 s no início
 //   • CSS/imagens carregam (site aparece com layout real)
 //   • Pausas explicativas entre cada etapa principal
-//   • Notificações Slack desativadas (sem spam durante demo)
 // =======================================================
 
 require('dotenv').config();
@@ -225,33 +224,6 @@ function transformarParaSupabase(registros) {
 // ========================
 function tempo(inicio) {
   return ((Date.now() - inicio) / 1000).toFixed(2) + "s";
-}
-
-function lerStatus() {
-  const caminho = path.join(__dirname, 'state', 'status-site.json');
-  if (!fs.existsSync(caminho)) return null;
-
-  try {
-    return JSON.parse(fs.readFileSync(caminho, 'utf-8')).status;
-  } catch (erro) {
-    log("ERROR", "📡 Erro ao ler status-site.json");
-    return null;
-  }
-}
-
-function salvarStatus(status) {
-  const pasta = path.join(__dirname, 'state');
-  if (!fs.existsSync(pasta)) {
-    fs.mkdirSync(pasta, { recursive: true });
-  }
-
-  const caminho = path.join(pasta, 'status-site.json');
-  fs.writeFileSync(caminho, JSON.stringify({ status }, null, 2));
-}
-
-// Slack desativado no modo apresentação para não enviar notificações durante a demo
-async function enviarSlack(mensagem) {
-  log("INFO", `💬 [APRESENTAÇÃO] Slack desativado — mensagem seria: ${mensagem}`);
 }
 
 async function acessarComRetry(page, url, tentativas = 3) {
@@ -641,29 +613,11 @@ async function enviarExcelOrbita(page, arquivoExcel, dataHoje) {
     'https://sirius.assim.com.br/assimcsp/autorizador/login.csp'
   );
 
-  const statusAnterior = await obterStatusRemoto();
-
   if (!sucesso) {
-    if (statusAnterior !== "offline") {
-      log("ERROR", "🚨 Site ficou OFFLINE");
-      await enviarSlack(
-        `🔴 *INDISPONIBILIDADE DETECTADA*\nO site do Autorizador da Assim está FORA do ar.\n⏰ ${new Date().toLocaleString('pt-BR')}`
-      );
-    }
-
-    await salvarStatusRemoto("offline");
+    log("ERROR", "🚨 Site ficou OFFLINE");
     await browser.close();
     process.exit(1);
   }
-
-  if (statusAnterior === "offline") {
-    log("SUCCESS", "✅ Site voltou ao normal");
-    await enviarSlack(
-      `🟢 *DISPONIBILIDADE RESTAURADA*\nO site do Autorizador da Assim voltou ao ar.\n⏰ ${new Date().toLocaleString('pt-BR')}`
-    );
-  }
-
-  await salvarStatusRemoto("online");
 
   await pausaApresentacao(page, 3, "Site da ASSIM carregado — observe a tela de login");
 
@@ -867,44 +821,3 @@ async function enviarLogDrive(caminhoLog, nomeArquivo) {
   }
 }
 
-// =============================
-// LER O STATUS
-// =============================
-async function obterStatusRemoto() {
-  for (let i = 1; i <= 2; i++) {
-    try {
-      const res = await fetch(process.env.GOOGLE_SCRIPT_URL);
-      const data = await res.json();
-      return data.status;
-    } catch (erro) {
-      if (i === 2) {
-        log("ERROR", "📡 Erro ao obter status remoto");
-        return "desconhecido";
-      }
-
-      await new Promise(r => setTimeout(r, 2000));
-    }
-  }
-}
-
-// =============================
-// SALVAR STATUS
-// =============================
-async function salvarStatusRemoto(status) {
-  try {
-    const url = process.env.GOOGLE_SCRIPT_URL;
-
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        type: "state",
-        status
-      })
-    });
-
-    await response.text();
-  } catch (erro) {
-    log("ERROR", `📡 Erro ao salvar status remoto: ${erro.message}`);
-  }
-}
