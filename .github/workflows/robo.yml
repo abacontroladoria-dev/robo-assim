@@ -4,7 +4,7 @@ on:
 
 concurrency:
   group: automacao-assim-orbita
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   run-robo:

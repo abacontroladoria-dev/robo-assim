@@ -778,10 +778,16 @@ async function enviarExcelOrbita(page, arquivoExcel, dataInicio, dataFim) {
     process.exit(1);
   }
 
-  await loginOrbita(page, userOrbita, passOrbita);
+  // 🛑 Sem alteração desde a última execução = o Órbita já tem esta semana.
+  // Reenviar a semana inteira a cada execução sobrecarregava o Órbita.
+  if (registrosAlterados.length === 0) {
+    log("INFO", "📭 Nenhuma alteração — pulando envio ao Órbita.");
+  } else {
+    await loginOrbita(page, userOrbita, passOrbita);
 
-  log("INFO", `📤 Enviando relatório da semana vigente (${dataInicio} a ${dataFim}) para Órbita...`);
-  await enviarExcelOrbita(page, caminhoArquivo, dataInicio, dataFim);
+    log("INFO", `📤 Enviando relatório da semana vigente (${dataInicio} a ${dataFim}) para Órbita...`);
+    await enviarExcelOrbita(page, caminhoArquivo, dataInicio, dataFim);
+  }
 
   const pastaLogs = path.join(__dirname, 'logs');
   const arquivos = fs.readdirSync(pastaLogs);
