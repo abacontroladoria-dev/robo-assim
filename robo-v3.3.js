@@ -535,25 +535,37 @@ async function enviarEmLotes(dados, tamanho = 100) {
 // BUSCAR EXISTENTES NO SUPABASE (para enviar só o que mudou)
 // ==================================================
 async function buscarExistentesSupabase(dataInicioISO, dataFimExclusivoISO) {
-  const url = `${process.env.SUPABASE_URL}/rest/v1/autorizacoes_assim` +
+  const base = `${process.env.SUPABASE_URL}/rest/v1/autorizacoes_assim` +
     `?data_execucao=gte.${dataInicioISO}&data_execucao=lt.${dataFimExclusivoISO}` +
-    `&select=guia,status,token,teve_token,biofacial`;
+    `&select=guia,status,token,teve_token,biofacial` +
+    `&order=guia.asc,data_execucao.asc`;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-  try {
-    const response = await fetch(url, {
-      headers: {
-        'apikey': key,
-        'Authorization': `Bearer ${key}`
-      }
-    });
+  // O PostgREST corta toda resposta em 1000 linhas: sem paginar, as guias
+  // além da milésima pareciam "novas" em toda execução.
+  const TAMANHO_PAGINA = 1000;
 
-    if (!response.ok) {
-      log("ERROR", `❌ Supabase erro ao buscar existentes: ${response.status}`);
-      return new Map();
+  try {
+    const registros = [];
+
+    for (let offset = 0; ; offset += TAMANHO_PAGINA) {
+      const response = await fetch(`${base}&limit=${TAMANHO_PAGINA}&offset=${offset}`, {
+        headers: {
+          'apikey': key,
+          'Authorization': `Bearer ${key}`
+        }
+      });
+
+      if (!response.ok) {
+        log("ERROR", `❌ Supabase erro ao buscar existentes: ${response.status}`);
+        return new Map();
+      }
+
+      const pagina = await response.json();
+      registros.push(...pagina);
+      if (pagina.length < TAMANHO_PAGINA) break;
     }
 
-    const registros = await response.json();
     return new Map(registros.map(r => [r.guia, r]));
   } catch (erro) {
     log("ERROR", `❌ Erro ao buscar registros existentes no Supabase: ${erro.message}`);
